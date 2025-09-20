@@ -82,7 +82,7 @@ jobs:
           ./build-tdlib.sh $ANDROID_SDK_ROOT $ANDROID_NDK_VERSION '' '' 'JSON'
 
       - name: Upload to Telegram
-        uses: xz-dev/TelegramFileUploader@v1
+        uses: xz-dev/TelegramFileUploader@v1.1.1
         with:
           to-who: ${{ secrets.TELEGRAM_CHANNEL_ID }}
           message: "$commit_hash Update version to $version"
