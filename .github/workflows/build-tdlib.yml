@@ -55,6 +55,7 @@ jobs:
         uses: android-actions/setup-android@v3
         with:
           accept-android-sdk-licenses: true
+          log-accepted-android-sdk-licenses: false
 
       - name: Install NDK and CMake
         run: |
@@ -85,12 +86,12 @@ jobs:
         run: |
           ANDROID_SDK_ROOT=$ANDROID_HOME
           ANDROID_NDK_VERSION=$ndk-version
-          echo "ANDROID_SDK_ROOT=$(ANDROID_SDK_ROOT)" >> $GITHUB_ENV
-          echo "ANDROID_NDK_VERSION=$(ANDROID_NDK_VERSION)" >> $GITHUB_ENV       
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
+          echo "ANDROID_NDK_VERSION=$ANDROID_NDK_VERSION" >> $GITHUB_ENV       
           OPENSSL_INSTALL_DIR="third-party/openssl"
           OPENSSL_VERSION=${{ env.tdbuild_versions_openssl_version}}
-          echo "OPENSSL_INSTALL_DIR=$(OPENSSL_INSTALL_DIR)" >> $GITHUB_ENV
-          echo "OPENSSL_VERSION=$(OPENSSL_VERSION)" >> $GITHUB_ENV
+          echo "OPENSSL_INSTALL_DIR=$OPENSSL_INSTALL_DIR" >> $GITHUB_ENV
+          echo "OPENSSL_VERSION=$OPENSSL_VERSION" >> $GITHUB_ENV
           cd td/example/android/
           echo "./check-environment.sh"
           ./check-environment.sh
