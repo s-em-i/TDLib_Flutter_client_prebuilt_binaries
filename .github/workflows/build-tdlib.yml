@@ -69,11 +69,11 @@ jobs:
           sdkmanager "platforms;android-34"
           sdkmanager "build-tools;34.0.0"
           
-          # Setze Umgebungsvariablen für NDK Pfad
-          NDK_PATH="$ANDROID_HOME/ndk/26.1.10909125"
+          # Setze Umgebungsvariablen für NDK Version
+          ANDROID_NDK_VERSION="26.1.10909125"
           CMAKE_PATH="$ANDROID_HOME/cmake/3.22.1/bin/cmake"
           
-          echo "ANDROID_NDK_HOME=$NDK_PATH" >> $GITHUB_ENV
+          echo "ANDROID_NDK_VERSION=$ANDROID_NDK_VERSION" >> $GITHUB_ENV
           echo "CMAKE_PATH=$CMAKE_PATH" >> $GITHUB_ENV
           
           echo "=== Verification ==="
@@ -85,9 +85,7 @@ jobs:
       - name: build openssl
         run: |
           ANDROID_SDK_ROOT=$ANDROID_HOME
-          ANDROID_NDK_VERSION=$ndk-version
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
-          echo "ANDROID_NDK_VERSION=$ANDROID_NDK_VERSION" >> $GITHUB_ENV       
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> $GITHUB_ENV       
           OPENSSL_INSTALL_DIR="third-party/openssl"
           OPENSSL_VERSION=${{ env.tdbuild_versions_openssl_version}}
           echo "OPENSSL_INSTALL_DIR=$OPENSSL_INSTALL_DIR" >> $GITHUB_ENV
