@@ -26,7 +26,6 @@ jobs:
 
       - name: clone TD lib and compare versions
         run: |
-          sudo apt-get git
           git clone https://github.com/s-em-i/TDLib_Flutter_client_prebuilt_binaries.git
           cd TDLib_Flutter_client_prebuilt_binaries
           LatestPrebuiltReleasedVersionTag=$(git describe --tags --abbrev=0 | sed 's/v//')
