@@ -1,6 +1,6 @@
 # This is a basic workflow to help you get started with Actions
 
-name: CI
+name: tdlib-build
 
 # Controls when the workflow will run
 on:
@@ -9,8 +9,7 @@ on:
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "build"
-  build:
+  build-android:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
 
@@ -18,13 +17,80 @@ jobs:
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v4
+      
+      - name: JSON to variables
+        uses: rgarcia-phi/json-to-variables@v1.1.0
+        with:
+          filename: '.github/workflows/td-version.json'
+          prefix: tdbuild_versions
 
-      # Runs a single command using the runners shell
-      - name: Run a one-line script
-        run: echo Hello, world!
-
-      # Runs a set of commands using the runners shell
-      - name: Run a multi-line script
+      - name: clone TD lib and compare versions
         run: |
-          echo Add other actions to build,
-          echo test, and deploy your project.
+          sudo apt-get git
+          git clone https://github.com/s-em-i/TDLib_Flutter_client_prebuilt_binaries.git
+          cd TDLib_Flutter_client_prebuilt_binaries
+          LatestPrebuiltReleasedVersionTag=$(git describe --tags --abbrev=0 | sed 's/v//')
+          echo $LatestPrebuiltReleasedVersionTag
+          cd -
+          git clone https://github.com/tdlib/td.git
+          cd td
+          LastReleasedVersionTag=$(git log -n 1 --grep="Update version to " --oneline)
+          commit_hash=$(echo "$LastReleasedVersionTag" | awk '{print $1}')
+          version=$(echo "$LastReleasedVersionTag" | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+\.' | sed 's/\.$//')
+          echo "$version"
+          cd -
+
+          if [[ $(echo -e "$version\n$LatestPrebuiltReleasedVersionTag" | sort -V | head -n1) == "$LatestPrebuiltReleasedVersionTag" ]]; then
+            #git checkout $commit_hash
+            echo "version=$(version)" >> $GITHUB_ENV
+            echo "commit_hash=$(commit_hash)" >> $GITHUB_ENV
+          else
+            echo "$version <= $LatestPrebuiltReleasedVersionTag - Kein Update nötig"
+            exit 0
+          fi          
+          
+      - name: install build essentials
+        run: |
+          sudo apt-get install -y make zlib1g-dev libssl-dev gperf cmake clang libc++-dev libc++abi-dev ninja-build
+
+      - name: download ndk
+        run: |
+          NDK=${{ env.tdbuild_versions_NDK }}
+          ANDROID_SDK_ROOT=/opt/android-ndk
+          mkdir -p $ANDROID_SDK_ROOT
+          cd $ANDROID_SDK_ROOT
+          wget -q https://dl.google.com/android/repository/$NDK
+          unzip -qo $NDK
+          ANDROID_NDK_VERSION=$(ls -t $ANDROID_SDK_ROOT/ | head -n 1)
+          echo "ANDROID_SDK_ROOT=$(ANDROID_SDK_ROOT)" >> $GITHUB_ENV
+          echo "ANDROID_NDK_VERSION=$(ANDROID_NDK_VERSION)" >> $GITHUB_ENV
+      
+      - name: build openssl
+        run: |
+          OPENSSL_INSTALL_DIR=third-party/openssl
+          OPENSSL_VERSION=${{ env.tdbuild_versions_openssl_version}}
+          echo "OPENSSL_INSTALL_DIR=$(OPENSSL_INSTALL_DIR)" >> $GITHUB_ENV
+          echo "OPENSSL_VERSION=$(OPENSSL_VERSION)" >> $GITHUB_ENV
+          cd td/example/android/
+          echo "./check-environment.sh"
+          ./check-environment.sh
+          ./build-openssl.sh $ANDROID_SDK_ROOT $ANDROID_NDK_VERSION $OPENSSL_INSTALL_DIR openssl-$OPENSSL_VERSION
+
+      - name: build tdlib
+        run: |
+          cd td/example/android/
+          ./build-tdlib.sh $ANDROID_SDK_ROOT $ANDROID_NDK_VERSION '' '' 'JSON'
+
+      - name: Upload to Telegram
+        uses: xz-dev/TelegramFileUploader@v1
+        with:
+          to-who: ${{ secrets.TELEGRAM_CHANNEL_ID }}
+          message: "$commit_hash Update version to $version"
+          files: |
+            td/example/android/tdlib/tdlib-debug.zip
+        env:
+          API_ID: ${{ secrets.API_ID }}
+          API_HASH: ${{ secrets.API_HASH }}
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+
+
