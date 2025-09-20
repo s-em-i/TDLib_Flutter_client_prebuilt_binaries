@@ -51,22 +51,36 @@ jobs:
         run: |
           sudo apt-get install -y make zlib1g-dev libssl-dev gperf cmake clang libc++-dev libc++abi-dev ninja-build
 
-      # ANDROID SETUP - Alle Tools in einem Step
-      - name: Setup Android SDK, NDK, Platform & CMake
+      - name: Setup Android SDK
         uses: android-actions/setup-android@v3
         with:
-          # SDK Version (android-34)
-          sdk-version: '34'
-          # NDK Version (neueste stabile)
-          ndk-version: '26.1.10909125'
-          # CMake Version (genau 3.22.1)
-          cmake-version: '3.22.1'
-          # Zusätzliche Packages (android-34 platform)
-          packages: |
-            platforms;android-34
-            build-tools;34.0.0
-            cmake;3.22.1
-            platforms;android-34
+          cmdline-tools-version: '16.0'
+          accept-android-sdk-licenses: true
+
+      - name: Install NDK and CMake
+        run: |
+          echo "=== Installing NDK 26.1.10909125 ==="
+          sdkmanager "ndk;26.1.10909125"
+          
+          echo "=== Installing CMake 3.22.1 ==="
+          sdkmanager "cmake;3.22.1"
+          
+          echo "=== Installing Android 34 Platform ==="
+          sdkmanager "platforms;android-34"
+          sdkmanager "build-tools;34.0.0"
+          
+          # Setze Umgebungsvariablen für NDK Pfad
+          NDK_PATH="$ANDROID_HOME/ndk/26.1.10909125"
+          CMAKE_PATH="$ANDROID_HOME/cmake/3.22.1/bin/cmake"
+          
+          echo "ANDROID_NDK_HOME=$NDK_PATH" >> $GITHUB_ENV
+          echo "CMAKE_PATH=$CMAKE_PATH" >> $GITHUB_ENV
+          
+          echo "=== Verification ==="
+          ls -la "$NDK_PATH" || echo "NDK not found"
+          "$CMAKE_PATH" --version || echo "CMake not found"
+        env:
+          ANDROID_HOME: ${{ env.ANDROID_HOME }}
       
       - name: build openssl
         run: |
