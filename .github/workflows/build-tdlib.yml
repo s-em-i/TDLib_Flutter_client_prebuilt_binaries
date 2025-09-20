@@ -40,8 +40,8 @@ jobs:
           cd -
 
           if [[ $(echo -e "$version\n$LatestPrebuiltReleasedVersionTag" | sort -V | head -n1) == "$LatestPrebuiltReleasedVersionTag" ]]; then
-            echo "version=$(version)" >> $GITHUB_ENV
-            echo "commit_hash=$(commit_hash)" >> $GITHUB_ENV
+            echo "version=$version" >> $GITHUB_ENV
+            echo "commit_hash=$commit_hash" >> $GITHUB_ENV
           else
             echo "$version <= $LatestPrebuiltReleasedVersionTag - Kein Update nötig"
             exit 0
