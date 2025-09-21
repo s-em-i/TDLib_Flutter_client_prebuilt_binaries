@@ -60,8 +60,8 @@ jobs:
           COMMIT_MESSAGE: ${{ env.commit_message }}
         run: |
           TDLIB_ANDROID=td/example/android/tdlib/tdlib-debug.zip
-          wget ﻿﻿https://core.telegram.org/tdlib/tdlib.zip
-          wget ﻿﻿https://core.telegram.org/tdlib/tdlib.zip
+          wget https://core.telegram.org/tdlib/tdlib.zip
+          wget https://core.telegram.org/tdlib/tdlib.zip
           TDLIB_ANDROID=tdlib.zip
           TDLIB_ANDROID2=tdlib.zig.1
           if [ ! -z "${{ secrets.TELEGRAM_BOT_TOKEN }}" ]; then
