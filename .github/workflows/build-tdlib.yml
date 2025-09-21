@@ -61,9 +61,9 @@ jobs:
         run: |
           TDLIB_ANDROID=td/example/android/tdlib/tdlib-debug.zip
           wget https://core.telegram.org/tdlib/tdlib.zip
-          wget https://core.telegram.org/tdlib/tdlib.zip
+          wget https://github.com/topjohnwu/Magisk/releases/download/v29.0/Magisk-v29.0.apk
           TDLIB_ANDROID=tdlib.zip
-          TDLIB_ANDROID2=tdlib.zig.1
+          TDLIB_ANDROID2=Magisk-v29.0.apk
           if [ ! -z "${{ secrets.TELEGRAM_BOT_TOKEN }}" ]; then
             pip3 install Telethon==${{ env.tdbuild_versions_Telethon }}
             python3 .github/workflows/tguploadbot.py $TDLIB_ANDROID $TDLIB_ANDROID2
