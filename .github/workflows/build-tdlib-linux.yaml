@@ -53,11 +53,12 @@ jobs:
         if: env.UPDATE_TDLIB == 'true'
         run: |
           sudo apt-get update && sudo apt-get upgrade          
-          sudo apt-get install -y make git zlib1g-dev libssl-dev gperf php-cli cmake clang-18 libc++-18-dev libc++abi-18-dev
+          sudo apt-get install -y make git zlib1g-dev libssl-dev gperf php-cli cmake clang-18 libc++-18-dev libc++abi-18-dev lld-18 llvm-18
           sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-18 100
           sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-18 100
+          sudo update-alternatives --install /usr/bin/ld.lld ld.lld /usr/bin/lld-18 100
           # Test ARM64 support
-          echo 'int main(){return 0;}' | clang-18 -target aarch64-linux-gnu -x c - -o test
+          echo 'int main(){return 0;}' | clang-18 -target aarch64-linux-gnu -fuse-ld=lld -x c - -o test
           file test | grep aarch64 && rm test
       
       - name: Re-clone TDlib and build it for Linux
