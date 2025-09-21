@@ -1,0 +1,118 @@
+# This is a basic workflow to help you get started with Actions
+
+name: tdlib-build-linux
+
+# Controls when the workflow will run
+on:
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  build-android:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-24.04
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v4
+
+      - name: clone TD lib and compare versions
+        run: |
+          git clone https://github.com/s-em-i/TDLib_Flutter_client_prebuilt_binaries.git
+          cd TDLib_Flutter_client_prebuilt_binaries
+          LatestPrebuiltReleasedVersionTag=$(git describe --tags --abbrev=0 | sed 's/v//')
+          echo $LatestPrebuiltReleasedVersionTag
+          cd -
+          git clone https://github.com/tdlib/td.git
+          cd td
+          LastReleasedVersionTag=$(git log -n 1 --grep="Update version to " --oneline)
+          commit_hash=$(echo "$LastReleasedVersionTag" | awk '{print $1}')
+          version=$(echo "$LastReleasedVersionTag" | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+\.' | sed 's/\.$//')
+          echo "$version"
+          cd -
+
+          echo "UPDATE_TDLIB=false" >> $GITHUB_ENV
+
+          if [[ $(echo -e "$version\n$LatestPrebuiltReleasedVersionTag" | sort -V | head -n1) == "$LatestPrebuiltReleasedVersionTag" ]]; then
+            echo "version=$version" >> $GITHUB_ENV
+            echo "commit_hash=$commit_hash" >> $GITHUB_ENV
+            echo "commit_message=$commit_hash Update version to $version" >> $GITHUB_ENV
+            echo "UPDATE_TDLIB=true" >> $GITHUB_ENV
+          fi
+      
+      - name: JSON to variables
+        if: env.UPDATE_TDLIB == 'true'
+        uses: rgarcia-phi/json-to-variables@v1.1.0
+        with:
+          filename: '.github/workflows/td-version.json'
+          prefix: tdbuild_versions
+          
+      - name: install build essentials
+        if: env.UPDATE_TDLIB == 'true'
+        run: |
+          sudo apt-get update && sudo apt-get upgrade          
+          sudo apt-get install -y make git zlib1g-dev libssl-dev gperf php-cli cmake clang-18 libc++-18-dev libc++abi-18-dev
+          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-18 100
+          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-18 100
+          # Test ARM64 support
+          echo 'int main(){return 0;}' | clang-18 -target aarch64-linux-gnu -x c - -o test
+          file test | grep aarch64 && rm test
+      
+      - name: Re-clone TDlib and build it for Linux
+        if: env.UPDATE_TDLIB == 'true'
+        run: |
+          rm -rf td
+          git clone https://github.com/tdlib/td.git
+          cd td && git checkout $commit_hash
+          rm -rf build && mkdir build && cd build
+          #CXXFLAGS="-stdlib=libc++" CC=/usr/bin/clang-18 CXX=/usr/bin/clang++-18 cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX:PATH=../tdlib -DTD_ENABLE_LTO=ON -DCMAKE_AR=/usr/bin/llvm-ar-18 -DCMAKE_NM=/usr/bin/llvm-nm-18 -DCMAKE_OBJDUMP=/usr/bin/llvm-objdump-18 -DCMAKE_RANLIB=/usr/bin/llvm-ranlib-18 ..
+          #cmake --build . --target install
+          #cd .. && cd .. && ls -l td/tdlib && cd td
+          #echo "Compressing..."
+          #rm -f tdlib-linux.zip tdlib-debug-linux.zip
+          #jar -cMf tdlib-debug-linux.zip tdlib
+          #rm tdlib/libs/*/*.debug
+          #jar -cMf tdlib-linux.zip tdlib
+          #mv tdlib-linux.zip tdlib-debug-linux.zip tdlib
+          chmod +x .github/workflows/build-multiarch.sh
+          .github/workflows/build-multiarch.sh
+
+      - name: Verify Binaries
+        run: |
+          cd td/build
+          echo "=== x86_64 Release ==="
+          file ../tdlib-x86_64-release/lib/libtdjson.so
+          
+          echo "=== ARM64 Release ==="
+          file ../tdlib-arm64-release/lib/libtdjson.so
+          
+          echo "=== Sizes ==="
+          ls -lh ../tdlib-*-release/lib/libtdjson.*
+      
+      - name: Create Release Archives
+        run: |
+          cd td/build
+          
+          jar -cMf ../tdlib-linux-x86_64.zip tdlib-x86_64-release/ tdlib-x86_64-debug/
+          echo "tdlib-linux-x86_64=tdlib-linux-x86_64.zip" >> $GITHUB_ENV
+          jar -cMf ../tdlib-linux-arm64.zip tdlib-arm64-release/ tdlib-arm64-debug/
+          echo "tdlib-linux-arm64=tdlib-arm64-x86_64.zip" >> $GITHUB_ENV
+          
+          ls -lh ../tdlib-*.zip
+
+      - name: Upload to Telegram
+        if: env.UPDATE_TDLIB == 'true'
+        env:
+          API_ID: ${{ secrets.TELEGRAM_API_ID }}
+          API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
+          SESSION: ${{ secrets.TELEGRAM_SESSION }}
+          CHAT_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
+          MESSAGE_THREAD_ID: ${{ secrets.MESSAGE_THREAD_ID }}
+          COMMIT_MESSAGE: ${{ env.commit_message }}
+        run: |
+          if [ ! -z "${{ secrets.TELEGRAM_BOT_TOKEN }}" ]; then
+            pip3 install Telethon==${{ env.tdbuild_versions_Telethon }}
+            python3 .github/workflows/tguploadbot.py $tdlib-linux-x86_64 $tdlib-linux-arm64
+          fi
