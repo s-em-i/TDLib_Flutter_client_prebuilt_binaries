@@ -68,7 +68,7 @@ make -j$(nproc) VERBOSE=1
 make install
 cd ..
 
-# 3. ARM64 Release Build
+# 3. ARM64 Release Build (mit Cross-Compile Sysroot)
 echo "=== Building ARM64 Release ==="
 mkdir -p build-arm64-release && cd build-arm64-release
 
@@ -82,11 +82,16 @@ set(CMAKE_RANLIB llvm-ranlib-18)
 set(CMAKE_NM llvm-nm-18)
 set(CMAKE_OBJDUMP llvm-objdump-18)
 set(CMAKE_LINKER lld-18)
-set(CMAKE_C_FLAGS "-target aarch64-linux-gnu -fuse-ld=lld")
-set(CMAKE_CXX_FLAGS "-target aarch64-linux-gnu -stdlib=libc++ -fuse-ld=lld")
-set(CMAKE_EXE_LINKER_FLAGS "-target aarch64-linux-gnu -fuse-ld=lld")
-set(CMAKE_SHARED_LINKER_FLAGS "-target aarch64-linux-gnu -fuse-ld=lld")
-set(CMAKE_MODULE_LINKER_FLAGS "-target aarch64-linux-gnu -fuse-ld=lld")
+
+# ARM64 Target + Sysroot
+set(CMAKE_SYSROOT /usr/aarch64-linux-gnu)
+set(CMAKE_C_FLAGS "-target aarch64-linux-gnu -fuse-ld=lld --sysroot=/usr/aarch64-linux-gnu")
+set(CMAKE_CXX_FLAGS "-target aarch64-linux-gnu -stdlib=libc++ -fuse-ld=lld --sysroot=/usr/aarch64-linux-gnu")
+set(CMAKE_EXE_LINKER_FLAGS "-target aarch64-linux-gnu -fuse-ld=lld --sysroot=/usr/aarch64-linux-gnu")
+set(CMAKE_SHARED_LINKER_FLAGS "-target aarch64-linux-gnu -fuse-ld=lld --sysroot=/usr/aarch64-linux-gnu")
+set(CMAKE_MODULE_LINKER_FLAGS "-target aarch64-linux-gnu -fuse-ld=lld --sysroot=/usr/aarch64-linux-gnu")
+
+# Find Root Path für Cross-Compile
 set(CMAKE_FIND_ROOT_PATH /usr/aarch64-linux-gnu)
 set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
@@ -94,7 +99,7 @@ set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
 EOF
 
-CXXFLAGS="-stdlib=libc++ -target aarch64-linux-gnu -fuse-ld=lld" \
+CXXFLAGS="-stdlib=libc++ -target aarch64-linux-gnu -fuse-ld=lld --sysroot=/usr/aarch64-linux-gnu" \
 CC=clang-18 \
 CXX=clang++-18 \
 cmake -DCMAKE_BUILD_TYPE=Release \
@@ -113,7 +118,7 @@ cd ../tdlib-arm64-release/lib/
 echo "=== ARM64 BINARY VERIFICATION ==="
 file libtdjson.so
 ls -lh libtdjson.*
-echo "Linker used: $(readelf -l libtdjson.so | grep INTERP | head -1 || echo 'Static build')"
+echo "Dependencies: $(ldd libtdjson.so 2>/dev/null || echo 'Static build')"
 cd ../../build-arm64-release/..
 
 # Verify ARM64 binary
