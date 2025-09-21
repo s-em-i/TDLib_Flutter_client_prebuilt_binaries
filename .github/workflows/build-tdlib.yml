@@ -46,25 +46,7 @@ jobs:
           else
             echo "$version <= $LatestPrebuiltReleasedVersionTag - Kein Update nötig"
             exit 1
-          fi          
-
-      - name: Upload to telegram Test
-        env:
-          CHAT_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
-          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          MESSAGE_THREAD_ID: ${{ secrets.MESSAGE_THREAD_ID }}
-          COMMIT_MESSAGE: ${{ env.commit_message }}
-          COMMIT_URL: ${{ github.event.head_commit.url }}
-        run: |
-          wget https://core.telegram.org/tdlib/tdlib.zip
-          if [ ! -z "${{ secrets.TELEGRAM_BOT_TOKEN }}" ]; then
-            pip3 install python-telegram-bot
-            python3 .github/workflows/tguploadbot.py tdlib.zip
           fi
-
-      - name: cancel job
-        run: |
-          exit 1
           
       - name: install build essentials
         run: |
@@ -73,31 +55,22 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
         with:
+          cmdline-tools-version: 12266719
           accept-android-sdk-licenses: true
           log-accepted-android-sdk-licenses: false
 
       - name: Install NDK and CMake
         run: |
-          echo "=== Installing NDK 26.1.10909125 ==="
-          sdkmanager "ndk;26.1.10909125"
+          echo "=== Installing NDK ${{ env.tdbuild_versions_NDK }} ==="
+          sdkmanager "ndk;${{ env.tdbuild_versions_NDK }}"
+          echo "ANDROID_NDK_VERSION=${{ env.tdbuild_versions_NDK }}" >> $GITHUB_ENV
           
-          echo "=== Installing CMake 3.22.1 ==="
-          sdkmanager "cmake;3.22.1"
+          echo "=== Installing CMake ${{ env.tdbuild_versions_cmake }} ==="
+          sdkmanager "cmake;${{ env.tdbuild_versions_cmake }}"
           
-          echo "=== Installing Android 34 Platform ==="
-          sdkmanager "platforms;android-34"
-          sdkmanager "build-tools;34.0.0"
-          
-          # Setze Umgebungsvariablen für NDK Version
-          ANDROID_NDK_VERSION="26.1.10909125"
-          CMAKE_PATH="$ANDROID_HOME/cmake/3.22.1/bin/cmake"
-          
-          echo "ANDROID_NDK_VERSION=$ANDROID_NDK_VERSION" >> $GITHUB_ENV
-          echo "CMAKE_PATH=$CMAKE_PATH" >> $GITHUB_ENV
-          
-          echo "=== Verification ==="
-          ls -la "$NDK_PATH" || echo "NDK not found"
-          "$CMAKE_PATH" --version || echo "CMake not found"
+          echo "=== Installing Android ${{ env.tdbuild_versions_platform }} Platform ==="
+          sdkmanager "platforms;android-${{ env.tdbuild_versions_platform }}"
+          sdkmanager "build-tools;${{ env.tdbuild_versions_build-tools }}"          
         env:
           ANDROID_HOME: ${{ env.ANDROID_HOME }}
       
@@ -106,7 +79,7 @@ jobs:
           ANDROID_SDK_ROOT=$ANDROID_HOME
           echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> $GITHUB_ENV       
           OPENSSL_INSTALL_DIR="third-party/openssl"
-          OPENSSL_VERSION=${{ env.tdbuild_versions_openssl_version}}
+          OPENSSL_VERSION=${{ env.tdbuild_versions_openssl }}
           echo "OPENSSL_INSTALL_DIR=$OPENSSL_INSTALL_DIR" >> $GITHUB_ENV
           echo "OPENSSL_VERSION=$OPENSSL_VERSION" >> $GITHUB_ENV
           cd td/example/android/
@@ -120,15 +93,17 @@ jobs:
           ./build-tdlib.sh $ANDROID_SDK_ROOT $ANDROID_NDK_VERSION '' '' 'JSON'
 
       - name: Upload to Telegram
-        uses: xz-dev/TelegramFileUploader@v1.1.1
-        with:
-          to-who: ${{ secrets.TELEGRAM_CHANNEL_ID }}
-          message: "$commit_hash Update version to $version"
-          files: |
-            td/example/android/tdlib/tdlib-debug.zip
         env:
-          API_ID: ${{ secrets.TELEGRAM_API_ID }}
-          API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
+          CHAT_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
           BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          MESSAGE_THREAD_ID: ${{ secrets.MESSAGE_THREAD_ID }}
+          COMMIT_MESSAGE: ${{ env.commit_message }}
+          COMMIT_URL: ${{ github.event.head_commit.url }}
+        run: |
+          TDLIB_ANDROID=td/example/android/tdlib/tdlib-debug.zip
+          if [ ! -z "${{ secrets.TELEGRAM_BOT_TOKEN }}" ]; then
+            pip3 install python-telegram-bot
+            python3 .github/workflows/tguploadbot.py $TDLIB_ANDROID
+          fi
 
 
