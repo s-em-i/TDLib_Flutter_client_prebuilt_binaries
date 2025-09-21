@@ -69,19 +69,22 @@ jobs:
           sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-18 100
           sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-18 100
           sudo update-alternatives --install /usr/bin/ld.lld ld.lld /usr/bin/lld-18 100
-          echo "[+] Testing ARM64 Clang-18 without sysroot..."
-          echo 'int main(){return 0;}' | \
-            clang-18 -target aarch64-linux-gnu \
-                     -fuse-ld=lld \
-                     -stdlib=libc++ \
-                     -x c - -o test_arm64_no_sysroot
+          echo "[+] Testing ARM64 C++ with static libc++..."
+          echo '#include <iostream>
+          int main(){std::cout << "Static libc++ ARM64!\\n";return 0;}' | \
+                clang++-18 -target aarch64-linux-gnu \
+                           -fuse-ld=lld \
+                           -stdlib=libc++ \
+                           -std=c++17 \
+                           -static-libstdc++ \
+                           -x c++ - -o test_cxx_static
           
-          if file test_arm64_no_sysroot | grep -q "aarch64"; then
-            echo "ARM64 Clang-18 successful without sysroot!"
-            rm test_arm64_no_sysroot
+          if file test_cxx_static | grep -q "aarch64"; then
+            echo "ARM64 C++ with static linking successful!"
+            rm test_cxx_static
           else
-            echo "ARM64 Clang-18 failed!"
-            file test_arm64_no_sysroot
+            echo "ARM64 C++ static failed!"
+            file test_cxx_static
             exit 1
           fi
           
