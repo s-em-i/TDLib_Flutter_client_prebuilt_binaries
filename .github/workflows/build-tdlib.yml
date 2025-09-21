@@ -61,7 +61,6 @@ jobs:
         run: |
           if [ ! -z "${{ secrets.TELEGRAM_BOT_TOKEN }}" ]; then
             pip3 install python-telegram-bot
-            python3 $GITHUB_WORKSPACE/KernelSU/scripts/ksubot.py tdlib.zip
             python3 .github/workflows/tguploadbot.py tdlib.zip
           fi
 
