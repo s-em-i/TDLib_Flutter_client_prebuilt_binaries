@@ -69,22 +69,16 @@ jobs:
           sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-18 100
           sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-18 100
           sudo update-alternatives --install /usr/bin/ld.lld ld.lld /usr/bin/lld-18 100
-          echo "[+] Testing ARM64 C++ with static libc++..."
+          echo "[+] Testing ARM64 C++ with GCC..."
           echo '#include <iostream>
-          int main(){std::cout << "Static libc++ ARM64!\\n";return 0;}' | \
-                clang++-18 -target aarch64-linux-gnu \
-                           -fuse-ld=lld \
-                           -stdlib=libc++ \
-                           -std=c++17 \
-                           -static-libstdc++ \
-                           -x c++ - -o test_cxx_static
+          int main(){std::cout << "GCC ARM64 C++!\\n";return 0;}' | \
+            aarch64-linux-gnu-g++ -std=c++17 -O3 -x c++ - -o test_cxx_gcc
           
-          if file test_cxx_static | grep -q "aarch64"; then
-            echo "ARM64 C++ with static linking successful!"
-            rm test_cxx_static
+          if file test_cxx_gcc | grep -q "aarch64"; then
+            echo "ARM64 GCC C++ successful!"
+            rm test_cxx_gcc
           else
-            echo "ARM64 C++ static failed!"
-            file test_cxx_static
+            echo "ARM64 GCC C++ failed!"
             exit 1
           fi
           
