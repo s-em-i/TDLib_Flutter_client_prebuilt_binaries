@@ -39,20 +39,22 @@ jobs:
           echo "$version"
           cd -
 
+          echo "UPDATE_TDLIB=false" >> $GITHUB_ENV
+
           if [[ $(echo -e "$version\n$LatestPrebuiltReleasedVersionTag" | sort -V | head -n1) == "$LatestPrebuiltReleasedVersionTag" ]]; then
             echo "version=$version" >> $GITHUB_ENV
             echo "commit_hash=$commit_hash" >> $GITHUB_ENV
             echo "commit_message=$commit_hash Update version to $version" >> $GITHUB_ENV
-          else
-            echo "$version <= $LatestPrebuiltReleasedVersionTag - Kein Update nötig"
-            exit 1
+            echo "UPDATE_TDLIB=true" >> $GITHUB_ENV
           fi
           
       - name: install build essentials
+        if: env.UPDATE_TDLIB == 'true'
         run: |
           sudo apt-get install -y make zlib1g-dev libssl-dev gperf cmake clang libc++-dev libc++abi-dev ninja-build
 
       - name: Setup Android SDK
+        if: env.UPDATE_TDLIB == 'true'
         uses: android-actions/setup-android@v3
         with:
           cmdline-tools-version: 12266719
@@ -60,6 +62,7 @@ jobs:
           log-accepted-android-sdk-licenses: false
 
       - name: Install NDK and CMake
+        if: env.UPDATE_TDLIB == 'true'
         run: |
           echo "=== Installing NDK ${{ env.tdbuild_versions_NDK }} ==="
           sdkmanager "ndk;${{ env.tdbuild_versions_NDK }}"
@@ -75,6 +78,7 @@ jobs:
           ANDROID_HOME: ${{ env.ANDROID_HOME }}
       
       - name: build openssl
+        if: env.UPDATE_TDLIB == 'true'
         run: |
           ANDROID_SDK_ROOT=$ANDROID_HOME
           echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> $GITHUB_ENV       
@@ -88,11 +92,13 @@ jobs:
           ./build-openssl.sh $ANDROID_SDK_ROOT $ANDROID_NDK_VERSION $OPENSSL_INSTALL_DIR openssl-$OPENSSL_VERSION
 
       - name: build tdlib
+        if: env.UPDATE_TDLIB == 'true'
         run: |
           cd td/example/android/
           ./build-tdlib.sh $ANDROID_SDK_ROOT $ANDROID_NDK_VERSION '' '' 'JSON'
 
       - name: Upload to Telegram
+        if: env.UPDATE_TDLIB == 'true'
         env:
           CHAT_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
           BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
