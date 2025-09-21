@@ -69,20 +69,37 @@ jobs:
           sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-18 100
           sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-18 100
           sudo update-alternatives --install /usr/bin/ld.lld ld.lld /usr/bin/lld-18 100
-          # Test ARM64 support
-          echo "[+] Testing ARM64 Cross-Compile with full runtime..."
+          echo "[+] Testing ARM64 Clang-18 without sysroot..."
           echo 'int main(){return 0;}' | \
             clang-18 -target aarch64-linux-gnu \
                      -fuse-ld=lld \
-                     --sysroot=/usr/aarch64-linux-gnu \
-                     -x c - -o test_arm64
+                     -stdlib=libc++ \
+                     -x c - -o test_arm64_no_sysroot
           
-          if file test_arm64 | grep -q "aarch64"; then
-            echo "ARM64 Cross-Compile successful!"
-            rm test_arm64
+          if file test_arm64_no_sysroot | grep -q "aarch64"; then
+            echo "ARM64 Clang-18 successful without sysroot!"
+            rm test_arm64_no_sysroot
           else
-            echo "ARM64 Cross-Compile failed!"
-            file test_arm64
+            echo "ARM64 Clang-18 failed!"
+            file test_arm64_no_sysroot
+            exit 1
+          fi
+          
+          # Test C++
+          echo "[+] Testing ARM64 C++..."
+          echo '#include <iostream>
+          int main(){std::cout << "Clang-18 C++ ARM64!\\n";return 0;}' | \
+                clang++-18 -target aarch64-linux-gnu \
+                           -fuse-ld=lld \
+                           -stdlib=libc++ \
+                           -std=c++17 \
+                           -x c++ - -o test_cxx_arm64
+    
+          if file test_cxx_arm64 | grep -q "aarch64"; then
+            echo "ARM64 C++ successful!"
+            rm test_cxx_arm64
+          else
+            echo "ARM64 C++ failed!"
             exit 1
           fi
           
