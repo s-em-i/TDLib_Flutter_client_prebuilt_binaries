@@ -48,19 +48,23 @@ set(CMAKE_RANLIB llvm-ranlib-18)
 set(CMAKE_NM llvm-nm-18)
 set(CMAKE_OBJDUMP llvm-objdump-18)
 set(CMAKE_LINKER lld-18)
-set(CMAKE_CXX_FLAGS "-stdlib=libc++ -g -O0")
-set(CMAKE_C_FLAGS "-g -O0")
+set(CMAKE_C_FLAGS "-fuse-ld=lld -g -O0")
+set(CMAKE_CXX_FLAGS "-fuse-ld=lld -stdlib=libc++ -g -O0")
+set(CMAKE_EXE_LINKER_FLAGS "-fuse-ld=lld")
+set(CMAKE_SHARED_LINKER_FLAGS "-fuse-ld=lld")
+set(CMAKE_MODULE_LINKER_FLAGS "-fuse-ld=lld")
 EOF
 
-CXXFLAGS="-stdlib=libc++ -g -O0" CC=clang-18 CXX=clang++-18 \
+CXXFLAGS="-stdlib=libc++ -g -O0 -fuse-ld=lld" CC=clang-18 CXX=clang++-18 \
 cmake -DCMAKE_BUILD_TYPE=Debug \
       -DCMAKE_TOOLCHAIN_FILE=../toolchain-x86_64.cmake \
       -DCMAKE_INSTALL_PREFIX=../tdlib-x86_64-debug \
       -DTD_ENABLE_LTO=OFF \
       -G "Unix Makefiles" \
+      -DCMAKE_VERBOSE_MAKEFILE=ON \
       ..
 
-make -j$(nproc)
+make -j$(nproc) VERBOSE=1
 make install
 cd ..
 
@@ -78,10 +82,11 @@ set(CMAKE_RANLIB llvm-ranlib-18)
 set(CMAKE_NM llvm-nm-18)
 set(CMAKE_OBJDUMP llvm-objdump-18)
 set(CMAKE_LINKER lld-18)
-set(CMAKE_C_FLAGS "-target aarch64-linux-gnu")
-set(CMAKE_CXX_FLAGS "-target aarch64-linux-gnu -stdlib=libc++")
-set(CMAKE_EXE_LINKER_FLAGS "-target aarch64-linux-gnu")
-set(CMAKE_SHARED_LINKER_FLAGS "-target aarch64-linux-gnu")
+set(CMAKE_C_FLAGS "-target aarch64-linux-gnu -fuse-ld=lld")
+set(CMAKE_CXX_FLAGS "-target aarch64-linux-gnu -stdlib=libc++ -fuse-ld=lld")
+set(CMAKE_EXE_LINKER_FLAGS "-target aarch64-linux-gnu -fuse-ld=lld")
+set(CMAKE_SHARED_LINKER_FLAGS "-target aarch64-linux-gnu -fuse-ld=lld")
+set(CMAKE_MODULE_LINKER_FLAGS "-target aarch64-linux-gnu -fuse-ld=lld")
 set(CMAKE_FIND_ROOT_PATH /usr/aarch64-linux-gnu)
 set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
@@ -89,7 +94,7 @@ set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
 EOF
 
-CXXFLAGS="-stdlib=libc++ -target aarch64-linux-gnu" \
+CXXFLAGS="-stdlib=libc++ -target aarch64-linux-gnu -fuse-ld=lld" \
 CC=clang-18 \
 CXX=clang++-18 \
 cmake -DCMAKE_BUILD_TYPE=Release \
@@ -97,10 +102,19 @@ cmake -DCMAKE_BUILD_TYPE=Release \
       -DCMAKE_INSTALL_PREFIX=../tdlib-arm64-release \
       -DTD_ENABLE_LTO=ON \
       -G "Unix Makefiles" \
+      -DCMAKE_VERBOSE_MAKEFILE=ON \
       ..
 
-make -j$(nproc)
+make -j$(nproc) VERBOSE=1
 make install
+
+# ARM64 Verification
+cd ../tdlib-arm64-release/lib/
+echo "=== ARM64 BINARY VERIFICATION ==="
+file libtdjson.so
+ls -lh libtdjson.*
+echo "Linker used: $(readelf -l libtdjson.so | grep INTERP | head -1 || echo 'Static build')"
+cd ../../build-arm64-release/..
 
 # Verify ARM64 binary
 cd ../tdlib-arm64-release/lib/
