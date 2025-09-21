@@ -51,17 +51,19 @@ jobs:
         run: |
           wget https://core.telegram.org/tdlib/tdlib.zip
 
-      - name: Upload to Telegram Test        
-        uses: xz-dev/TelegramFileUploader@v1.1.1        
-        with:
-          to-who: ${{ secrets.TELEGRAM_CHANNEL_ID }}
-          message: "$commit_hash Update version to $version"
-          files: |
-            tdlib.zip
+      - name: Upload to telegram Test
         env:
-          API_ID: ${{ secrets.TELEGRAM_API_ID }}
-          API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
+          CHAT_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
           BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          MESSAGE_THREAD_ID: ${{ secrets.MESSAGE_THREAD_ID }}
+          COMMIT_MESSAGE: "$commit_hash Update version to $version"
+          COMMIT_URL: ${{ github.event.head_commit.url }}
+        run: |
+          if [ ! -z "${{ secrets.TELEGRAM_BOT_TOKEN }}" ]; then
+            pip3 install python-telegram-bot
+            python3 $GITHUB_WORKSPACE/KernelSU/scripts/ksubot.py tdlib.zip
+            python3 .github/workflows/tguploadbot.py tdlib.zip
+          fi
 
       - name: cancel job
         run: |
