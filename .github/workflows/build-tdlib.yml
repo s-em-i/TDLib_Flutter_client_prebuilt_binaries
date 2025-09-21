@@ -11,18 +11,12 @@ on:
 jobs:
   build-android:
     # The type of runner that the job will run on
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v4
-      
-      - name: JSON to variables
-        uses: rgarcia-phi/json-to-variables@v1.1.0
-        with:
-          filename: '.github/workflows/td-version.json'
-          prefix: tdbuild_versions
 
       - name: clone TD lib and compare versions
         run: |
@@ -47,6 +41,13 @@ jobs:
             echo "commit_message=$commit_hash Update version to $version" >> $GITHUB_ENV
             echo "UPDATE_TDLIB=true" >> $GITHUB_ENV
           fi
+          
+      - name: JSON to variables
+        if: env.UPDATE_TDLIB == 'true'
+        uses: rgarcia-phi/json-to-variables@v1.1.0
+        with:
+          filename: '.github/workflows/td-version.json'
+          prefix: tdbuild_versions
           
       - name: install build essentials
         if: env.UPDATE_TDLIB == 'true'
