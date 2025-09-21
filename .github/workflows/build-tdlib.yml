@@ -46,6 +46,26 @@ jobs:
             echo "$version <= $LatestPrebuiltReleasedVersionTag - Kein Update nötig"
             exit 0
           fi          
+
+      - name: Download temp file
+        run: |
+          wget https://core.telegram.org/tdlib/tdlib.zip
+
+      - name: Upload to Telegram Test        
+        uses: xz-dev/TelegramFileUploader@v1.1.1        
+        with:
+          to-who: ${{ secrets.TELEGRAM_CHANNEL_ID }}
+          message: "$commit_hash Update version to $version"
+          files: |
+            tdlib.zip
+        env:
+          API_ID: ${{ secrets.TELEGRAM_API_ID }}
+          API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
+          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+
+      - name: cancel job
+        run: |
+          exit 0
           
       - name: install build essentials
         run: |
