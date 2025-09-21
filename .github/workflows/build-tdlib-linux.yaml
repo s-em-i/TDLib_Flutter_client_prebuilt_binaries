@@ -55,9 +55,17 @@ jobs:
           sudo apt-get update
           sudo dpkg --configure -a || true
           sudo apt-get install -f || true
-          sudo apt-get install -y make git zlib1g-dev libssl-dev gperf php-cli cmake clang-18 libc++-18-dev libc++abi-18-dev lld-18 llvm-18
-          sudo apt-get install -y libc6-dev-arm64-cross libgcc-13-dev-arm64-cross linux-libc-dev-arm64-cross libc++-18-dev-arm64-cross libc++abi-18-dev-arm64-cross
-          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu binutils-aarch64-linux-gnu
+          sudo apt-get install -y --no-install-recommends make git zlib1g-dev libssl-dev gperf php-cli cmake ninja-build wget curl build-essential
+
+          echo "[+] Adding LLVM APT Repository for Clang-18..."
+          wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+          sudo add-apt-repository "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main"
+          sudo apt-get update
+
+          sudo apt-get install -y --no-install-recommends clang-18 lld-18 llvm-18 libc++-18-dev libc++abi-18-dev
+
+          sudo apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu g++-aarch64-linux-gnu binutils-aarch64-linux-gnu libc6-dev-arm64-cross libgcc-11-dev-arm64-cross linux-libc-dev-arm64-cross
+          
           sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-18 100
           sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-18 100
           sudo update-alternatives --install /usr/bin/ld.lld ld.lld /usr/bin/lld-18 100
