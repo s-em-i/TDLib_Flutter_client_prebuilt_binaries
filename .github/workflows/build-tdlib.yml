@@ -31,11 +31,11 @@ jobs:
           commit_hash=$(echo "$LastReleasedVersionTag" | awk '{print $1}')
           version=$(echo "$LastReleasedVersionTag" | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+\.' | sed 's/\.$//')
           echo "$version"
-          cd -
 
           echo "UPDATE_TDLIB=false" >> $GITHUB_ENV
 
           if [[ $(echo -e "$version\n$LatestPrebuiltReleasedVersionTag" | sort -V | head -n1) == "$LatestPrebuiltReleasedVersionTag" ]]; then
+            git checkout $commit_hash
             echo "version=$version" >> $GITHUB_ENV
             echo "commit_hash=$commit_hash" >> $GITHUB_ENV
             echo "commit_message=$commit_hash Update version to $version" >> $GITHUB_ENV
