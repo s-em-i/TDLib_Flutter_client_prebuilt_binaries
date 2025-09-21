@@ -42,23 +42,21 @@ jobs:
           if [[ $(echo -e "$version\n$LatestPrebuiltReleasedVersionTag" | sort -V | head -n1) == "$LatestPrebuiltReleasedVersionTag" ]]; then
             echo "version=$version" >> $GITHUB_ENV
             echo "commit_hash=$commit_hash" >> $GITHUB_ENV
+            echo "commit_message=$commit_hash Update version to $version" >> $GITHUB_ENV
           else
             echo "$version <= $LatestPrebuiltReleasedVersionTag - Kein Update nötig"
-            exit 0
+            exit 1
           fi          
-
-      - name: Download temp file
-        run: |
-          wget https://core.telegram.org/tdlib/tdlib.zip
 
       - name: Upload to telegram Test
         env:
           CHAT_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
           BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           MESSAGE_THREAD_ID: ${{ secrets.MESSAGE_THREAD_ID }}
-          COMMIT_MESSAGE: $commit_hash Update version to $version
+          COMMIT_MESSAGE: ${{ env.commit_message }}
           COMMIT_URL: ${{ github.event.head_commit.url }}
         run: |
+          wget https://core.telegram.org/tdlib/tdlib.zip
           if [ ! -z "${{ secrets.TELEGRAM_BOT_TOKEN }}" ]; then
             pip3 install python-telegram-bot
             python3 .github/workflows/tguploadbot.py tdlib.zip
@@ -66,7 +64,7 @@ jobs:
 
       - name: cancel job
         run: |
-          exit 0
+          exit 1
           
       - name: install build essentials
         run: |
