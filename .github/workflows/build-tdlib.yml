@@ -49,27 +49,6 @@ jobs:
           filename: '.github/workflows/td-version.json'
           prefix: tdbuild_versions
           
-      - name: Upload to Telegram
-        if: env.UPDATE_TDLIB == 'true'
-        env:
-          API_ID: ${{ secrets.TELEGRAM_API_ID }}
-          API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
-          SESSION: ${{ secrets.TELEGRAM_SESSION }}
-          CHAT_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
-          MESSAGE_THREAD_ID: ${{ secrets.MESSAGE_THREAD_ID }}
-          COMMIT_MESSAGE: ${{ env.commit_message }}
-        run: |
-          TDLIB_ANDROID=td/example/android/tdlib/tdlib-debug.zip
-          wget https://core.telegram.org/tdlib/tdlib.zip
-          wget https://github.com/topjohnwu/Magisk/releases/download/v29.0/Magisk-v29.0.apk
-          TDLIB_ANDROID=tdlib.zip
-          TDLIB_ANDROID2=Magisk-v29.0.apk
-          if [ ! -z "${{ secrets.TELEGRAM_BOT_TOKEN }}" ]; then
-            pip3 install Telethon==${{ env.tdbuild_versions_Telethon }}
-            python3 .github/workflows/tguploadbot.py $TDLIB_ANDROID $TDLIB_ANDROID2
-          fi
-          echo "UPDATE_TDLIB=false" >> $GITHUB_ENV
-
       - name: install build essentials
         if: env.UPDATE_TDLIB == 'true'
         run: |
@@ -119,4 +98,18 @@ jobs:
           cd td/example/android/
           ./build-tdlib.sh $ANDROID_SDK_ROOT $ANDROID_NDK_VERSION '' '' 'JSON'
 
-
+      - name: Upload to Telegram
+        if: env.UPDATE_TDLIB == 'true'
+        env:
+          API_ID: ${{ secrets.TELEGRAM_API_ID }}
+          API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
+          SESSION: ${{ secrets.TELEGRAM_SESSION }}
+          CHAT_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
+          MESSAGE_THREAD_ID: ${{ secrets.MESSAGE_THREAD_ID }}
+          COMMIT_MESSAGE: ${{ env.commit_message }}
+        run: |
+          TDLIB_ANDROID=td/example/android/tdlib/tdlib-debug.zip
+          if [ ! -z "${{ secrets.TELEGRAM_BOT_TOKEN }}" ]; then
+            pip3 install Telethon==${{ env.tdbuild_versions_Telethon }}
+            python3 .github/workflows/tguploadbot.py $TDLIB_ANDROID
+          fi
