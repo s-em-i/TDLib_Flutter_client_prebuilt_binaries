@@ -52,14 +52,34 @@ jobs:
       - name: install build essentials
         if: env.UPDATE_TDLIB == 'true'
         run: |
-          sudo apt-get update && sudo apt-get upgrade          
+          sudo apt-get update
+          sudo dpkg --configure -a || true
+          sudo apt-get install -f || true
           sudo apt-get install -y make git zlib1g-dev libssl-dev gperf php-cli cmake clang-18 libc++-18-dev libc++abi-18-dev lld-18 llvm-18
+          sudo apt-get install -y libc6-dev-arm64-cross libgcc-13-dev-arm64-cross linux-libc-dev-arm64-cross libc++-18-dev-arm64-cross libc++abi-18-dev-arm64-cross
+          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu binutils-aarch64-linux-gnu
           sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-18 100
           sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-18 100
           sudo update-alternatives --install /usr/bin/ld.lld ld.lld /usr/bin/lld-18 100
           # Test ARM64 support
-          echo 'int main(){return 0;}' | clang-18 -target aarch64-linux-gnu -fuse-ld=lld -x c - -o test
-          file test | grep aarch64 && rm test
+          echo "[+] Testing ARM64 Cross-Compile with full runtime..."
+          echo 'int main(){return 0;}' | \
+            clang-18 -target aarch64-linux-gnu \
+                     -fuse-ld=lld \
+                     --sysroot=/usr/aarch64-linux-gnu \
+                     -x c - -o test_arm64
+          
+          if file test_arm64 | grep -q "aarch64"; then
+            echo "ARM64 Cross-Compile successful!"
+            rm test_arm64
+          else
+            echo "ARM64 Cross-Compile failed!"
+            file test_arm64
+            exit 1
+          fi
+          
+          echo "[+] Available ARM64 libraries:"
+          ls -la /usr/aarch64-linux-gnu/lib/*.so* 2>/dev/null | head -5 || echo "No ARM64 libs found"
       
       - name: Re-clone TDlib and build it for Linux
         if: env.UPDATE_TDLIB == 'true'
