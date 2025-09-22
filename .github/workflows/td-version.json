@@ -4,5 +4,6 @@
     "cmake": "3.22.1",
     "platform": "34",
     "build-tools": "34.0.0",
-    "Telethon": "1.41.2"
+    "Telethon": "1.41.2",
+    "zlib": "1.3.1"
 }
