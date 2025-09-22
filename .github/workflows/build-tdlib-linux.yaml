@@ -107,6 +107,7 @@ jobs:
           echo "[+] Building TDLib x86_64 Release (Clang-18)..."
           mkdir -p build-x86_64-test && cd build-x86_64-test
           
+          # ✅ FIX: Falscher Pfad - zeige auf td/ statt td/build/
           CC=clang-18 CXX=clang++-18 \
           cmake -DCMAKE_BUILD_TYPE=Release \
                 -DCMAKE_INSTALL_PREFIX=../tdlib-x86_64-test \
@@ -114,7 +115,7 @@ jobs:
                 -DCMAKE_C_FLAGS="-fuse-ld=lld" \
                 -DCMAKE_CXX_FLAGS="-fuse-ld=lld -stdlib=libc++" \
                 -G Ninja \
-                ..
+                ../../..  # <- Von td/build/build-x86_64-test/ zu td/
           
           cmake --build . --parallel $(nproc)
           cmake --install .
