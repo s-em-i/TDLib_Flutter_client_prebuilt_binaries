@@ -124,7 +124,7 @@ jobs:
           cd ..
           
           # TDLib ARM64 Build
-          cd ../..  # Zurück zu td/
+          cd ..
           rm -rf build && mkdir build && cd build
           
           CC=/usr/bin/aarch64-linux-gnu-gcc \
