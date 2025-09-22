@@ -103,14 +103,13 @@ jobs:
             wget https://zlib.net/zlib-${{ env.tdbuild_versions_zlib }}.tar.gz
             tar -xf zlib-${{ env.tdbuild_versions_zlib }}.tar.gz
             cd zlib-${{ env.tdbuild_versions_zlib }}
-              export CROSS_COMPILE="${{ env.CROSS_COMPILE }}"
-              export CC="${CROSS_COMPILE}gcc"
-              export CXX="${CROSS_COMPILE}g++"
-              export AR="${CROSS_COMPILE}ar"
-              export RANLIB="${CROSS_COMPILE}ranlib"
-              export LD="${CROSS_COMPILE}ld"
-              export NM="${CROSS_COMPILE}nm"
-              export STRIP="${CROSS_COMPILE}strip"
+              export CC="${CROSS_COMPILE}-gcc"
+              export CXX="${CROSS_COMPILE}-g++"
+              export AR="${CROSS_COMPILE}-ar"
+              export RANLIB="${CROSS_COMPILE}-ranlib"
+              export LD="${CROSS_COMPILE}-ld"
+              export NM="${CROSS_COMPILE}-nm"
+              export STRIP="${CROSS_COMPILE}-strip"
               export CFLAGS="--sysroot=/usr/aarch64-linux-gnu"
               ./configure --prefix="${PWD}/install" --static
               make -j$(nproc)
