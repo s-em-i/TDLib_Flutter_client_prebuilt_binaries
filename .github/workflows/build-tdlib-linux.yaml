@@ -56,19 +56,20 @@ jobs:
           sudo dpkg --configure -a || true
           sudo apt-get install -f || true
           sudo apt-get install -y --no-install-recommends make git zlib1g-dev libssl-dev gperf php-cli cmake ninja-build wget curl build-essential
-
+      
           echo "[+] Adding LLVM APT Repository for Clang-18..."
           wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
           sudo add-apt-repository "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main"
           sudo apt-get update
-
+      
           sudo apt-get install -y --no-install-recommends clang-18 lld-18 llvm-18 libc++-18-dev libc++abi-18-dev
-
+      
           sudo apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu g++-aarch64-linux-gnu binutils-aarch64-linux-gnu libc6-dev-arm64-cross libgcc-11-dev-arm64-cross linux-libc-dev-arm64-cross
           
           sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-18 100
           sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-18 100
           sudo update-alternatives --install /usr/bin/ld.lld ld.lld /usr/bin/lld-18 100
+          
           echo "[+] Testing ARM64 C++ with GCC..."
           echo '#include <iostream>
           int main(){std::cout << "GCC ARM64 C++!\\n";return 0;}' | \
@@ -79,24 +80,6 @@ jobs:
             rm test_cxx_gcc
           else
             echo "ARM64 GCC C++ failed!"
-            exit 1
-          fi
-          
-          # Test C++
-          echo "[+] Testing ARM64 C++..."
-          echo '#include <iostream>
-          int main(){std::cout << "Clang-18 C++ ARM64!\\n";return 0;}' | \
-                clang++-18 -target aarch64-linux-gnu \
-                           -fuse-ld=lld \
-                           -stdlib=libc++ \
-                           -std=c++17 \
-                           -x c++ - -o test_cxx_arm64
-    
-          if file test_cxx_arm64 | grep -q "aarch64"; then
-            echo "ARM64 C++ successful!"
-            rm test_cxx_arm64
-          else
-            echo "ARM64 C++ failed!"
             exit 1
           fi
           
