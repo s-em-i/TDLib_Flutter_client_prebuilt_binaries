@@ -92,8 +92,26 @@ jobs:
       - name: Build TDLib Linux ARM64 Release
         if: env.UPDATE_TDLIB == 'true'
         run: |
-          cd td && rm -rf build && mkdir build && cd build
-
+          # Cross-Compile Dependencies zuerst (OpenSSL, Zlib - aus erfolgreichen Builds)
+          echo "[+] Building ARM64 Dependencies..."
+          mkdir -p td/third-party && cd td/third-party
+          
+          # Zlib cross-compile (minimal)
+          rm -rf zlib-arm64
+          tar -xf zlib-1.2.13.tar.gz
+          cd zlib-1.2.13
+          CC=/usr/bin/aarch64-linux-gnu-gcc \
+          CXX=/usr/bin/aarch64-linux-gnu-g++ \
+          AR=/usr/bin/aarch64-linux-gnu-ar \
+          ./configure --prefix=/tmp/arm64-deps --host=aarch64-linux-gnu --static
+          make -j$(nproc)
+          make install
+          cd ..
+          
+          # TDLib ARM64 Build
+          cd ../..  # Zurück zu td/
+          rm -rf build && mkdir build && cd build
+          
           CC=/usr/bin/aarch64-linux-gnu-gcc \
           CXX=/usr/bin/aarch64-linux-gnu-g++ \
           AR=/usr/bin/aarch64-linux-gnu-ar \
@@ -111,20 +129,39 @@ jobs:
                 -DCMAKE_RANLIB=/usr/bin/aarch64-linux-gnu-ranlib \
                 -DCMAKE_NM=/usr/bin/aarch64-linux-gnu-nm \
                 -DCMAKE_OBJDUMP=/usr/bin/aarch64-linux-gnu-objdump \
-                -DCMAKE_FIND_ROOT_PATH=/usr/aarch64-linux-gnu \
+                -DCMAKE_FIND_ROOT_PATH=/tmp/arm64-deps;/usr/aarch64-linux-gnu \  # ← Dependencies + Sysroot
                 -DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER \
                 -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY \
                 -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY \
-                -DTD_ENABLE_CPP_DRIVER_GENERATOR=OFF \
-                ..  
-    
-          cmake --build . --parallel $(nproc)
+                -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ONLY \
+                -DTD_ENABLE_CPP_DRIVER_GENERATOR=OFF \  # ← Generierung deaktivieren (wie in deinen Logs)
+                -DTD_ENABLE_TESTS=OFF \  # ← Tests deaktivieren (vermeidet Sanitizer-Fehler)
+                -DZLIB_LIBRARY=/tmp/arm64-deps/lib/libz.a \  # ← Statische Zlib
+                -DZLIB_INCLUDE_DIR=/tmp/arm64-deps/include \
+                -DOPENSSL_ROOT_DIR=/usr/aarch64-linux-gnu \  # ← System OpenSSL
+                -DCMAKE_C_FLAGS="-O3 -march=armv8-a" \  # ← ARM64-Optimierung
+                -DCMAKE_CXX_FLAGS="-O3 -march=armv8-a -std=c++17" \
+                ..
+          
+          echo "[+] CMake configured successfully!"
+          
+          # Build mit maximaler Parallelität
+          cmake --build . --parallel $(nproc) VERBOSE=1  # ← Verbose für Debugging
+          
           cmake --install .
           cd .. && cd ..
           
+          # Verification
           echo "[+] ARM64 Release Verification:"
-          file td/tdlib-arm64-release/lib/libtdjson.so
-          ls -lh td/tdlib-arm64-release/lib/libtdjson.*
+          if [ -f "tdlib-arm64-release/lib/libtdjson.so" ]; then
+            file tdlib-arm64-release/lib/libtdjson.so
+            ls -lh tdlib-arm64-release/lib/libtdjson.*
+            echo "ARM64 Build successful!"
+          else
+            echo "libtdjson.so not found!"
+            find . -name "libtdjson*" -type f || echo "No libtdjson found"
+            exit 1
+          fi
           
       - name: Verify Binaries
         if: env.UPDATE_TDLIB == 'false'
