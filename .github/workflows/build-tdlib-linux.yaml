@@ -115,7 +115,7 @@ jobs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER \
                 -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY \
                 -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY \
-                -DCPP_DRIVER_GENERATOR=php \
+                -DTD_ENABLE_CPP_DRIVER_GENERATOR=OFF \
                 ..  
     
           cmake --build . --parallel $(nproc)
