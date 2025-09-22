@@ -188,7 +188,9 @@ jobs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY \
                 -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY \
                 -DCPP_DRIVER_GENERATOR=OFF \
+                -DTD_ENABLE_CPP_DRIVER_GENERATOR=OFF \
                 -DTD_ENABLE_TESTS=OFF \
+                -DTD_ENABLE_GENERATED_FILES=OFF \
                 ..
           
           cmake --build . --parallel $(nproc)
