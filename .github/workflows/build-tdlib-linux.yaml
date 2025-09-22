@@ -53,7 +53,7 @@ jobs:
         if: env.UPDATE_TDLIB == 'true'
         run: |
           sudo apt-get update && sudo apt-get upgrade -y
-          sudo apt-get install -y make git zlib1g-dev libssl-dev gperf php-cli cmake clang-14 libc++-14-dev libc++abi-14-dev build-essential
+          sudo apt-get install -y make git zlib1g-dev libssl-dev gperf php-cli cmake clang-14 libc++-14-dev libc++abi-14-dev build-essential libc6-dev-arm64-cross
           sudo apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu g++-aarch64-linux-gnu binutils-aarch64-linux-gnu
           
           sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-14 100
@@ -168,10 +168,10 @@ jobs:
           
           CC=/usr/bin/aarch64-linux-gnu-gcc \
           CXX=/usr/bin/aarch64-linux-gnu-g++ \
-          AR=/usr/bin/aarch64-linux-gnu-ar \
-          RANLIB=/usr/bin/aarch64-linux-gnu-ranlib \
-          NM=/usr/bin/aarch64-linux-gnu-nm \
-          OBJDUMP=/usr/bin/aarch64-linux-gnu-objdump \
+          AR=/usr/bin/llvm-ar-14 \          # ← LLVM-14 Tools (wie x86_64)!
+          RANLIB=/usr/bin/llvm-ranlib-14 \  # ← LLVM-14 Tools
+          NM=/usr/bin/llvm-nm-14 \          # ← LLVM-14 Tools
+          OBJDUMP=/usr/bin/llvm-objdump-14 \ # ← LLVM-14 Tools
           cmake -DCMAKE_BUILD_TYPE=Release \
                 -DCMAKE_INSTALL_PREFIX:PATH=../tdlib-arm64-release \
                 -DTD_ENABLE_LTO=ON \
@@ -179,23 +179,16 @@ jobs:
                 -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
                 -DCMAKE_C_COMPILER=/usr/bin/aarch64-linux-gnu-gcc \
                 -DCMAKE_CXX_COMPILER=/usr/bin/aarch64-linux-gnu-g++ \
-                -DCMAKE_AR=/usr/bin/aarch64-linux-gnu-ar \
-                -DCMAKE_RANLIB=/usr/bin/aarch64-linux-gnu-ranlib \
-                -DCMAKE_NM=/usr/bin/aarch64-linux-gnu-nm \
-                -DCMAKE_OBJDUMP=/usr/bin/aarch64-linux-gnu-objdump \
-                -DCMAKE_FIND_ROOT_PATH=/tmp/arm64-deps;/usr/aarch64-linux-gnu \
+                -DCMAKE_AR=/usr/bin/llvm-ar-14 \          # ← Explizit LLVM-14!
+                -DCMAKE_RANLIB=/usr/bin/llvm-ranlib-14 \ # ← Explizit LLVM-14!
+                -DCMAKE_NM=/usr/bin/llvm-nm-14 \          # ← Explizit LLVM-14!
+                -DCMAKE_OBJDUMP=/usr/bin/llvm-objdump-14 \ # ← Explizit LLVM-14!
+                -DCMAKE_FIND_ROOT_PATH=/usr/aarch64-linux-gnu \
                 -DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER \
                 -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY \
                 -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY \
-                -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ONLY \
-                -DCPP_DRIVER_GENERATOR=OFF \  # Generierung deaktivieren
-                -DTD_ENABLE_TESTS=OFF \  # Tests deaktivieren
-                -DOPENSSL_ROOT_DIR=/tmp/arm64-deps \
-                -DOPENSSL_INCLUDE_DIR=/tmp/arm64-deps/include \
-                -DOPENSSL_CRYPTO_LIBRARY=/tmp/arm64-deps/lib/libcrypto.a \
-                -DOPENSSL_SSL_LIBRARY=/tmp/arm64-deps/lib/libssl.a \
-                -DCMAKE_C_FLAGS="-O3 -march=armv8-a" \
-                -DCMAKE_CXX_FLAGS="-O3 -march=armv8-a -std=c++17" \
+                -DCPP_DRIVER_GENERATOR=OFF \
+                -DTD_ENABLE_TESTS=OFF \
                 ..
           
           cmake --build . --parallel $(nproc)
