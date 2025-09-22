@@ -92,6 +92,29 @@ jobs:
       - name: Build TDLib Linux ARM64 Release
         if: env.UPDATE_TDLIB == 'true'
         run: |
+          # Clang-Version
+          clang-14 --version | head -1 || echo "❌ clang-14 not found"
+          clang-18 --version | head -1 || echo "❌ clang-18 not found"
+          clang --version | head -1 || echo "❌ Default clang not found"
+          
+          # LLVM-Versionen
+          ls -la /usr/lib/llvm-14/ 2>/dev/null || echo "❌ llvm-14 not found"
+          ls -la /usr/lib/llvm-18/ 2>/dev/null || echo "❌ llvm-18 not found"
+          
+          # Welche Version ist aktiv?
+          echo "[+] Active LLVM version:"
+          llvm-config --version 2>/dev/null || echo "❌ llvm-config not found"
+          ldd --version | head -1  # System Linker-Version
+          
+          # Sanitizer-Pfade prüfen
+          echo "[+] Sanitizer libraries:"
+          find /usr/lib/llvm* -name "*ubsan*" 2>/dev/null | head -5 || echo "No ubsan libraries found"
+          
+          # Update-alternatives Status
+          echo "[+] Update-alternatives:"
+          update-alternatives --display clang || echo "No alternatives for clang"
+          update-alternatives --display clang++ || echo "No alternatives for clang++"
+          
           # Cross-Compile Dependencies zuerst (OpenSSL, Zlib - aus erfolgreichen Builds)
           echo "[+] Building ARM64 Dependencies..."
           mkdir -p td/third-party && cd td/third-party
