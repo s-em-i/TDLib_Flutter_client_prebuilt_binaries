@@ -98,12 +98,27 @@ jobs:
           
           # Zlib cross-compile (minimal)
           rm -rf zlib-arm64
-          tar -xf zlib-1.2.13.tar.gz
-          cd zlib-1.2.13
+          wget https://zlib.net/zlib-${{ env.tdbuild_versions_zlib }}.tar.gz
+          tar -xf zlib-${{ env.tdbuild_versions_zlib }}.tar.gz
+          cd zlib-${{ env.tdbuild_versions_zlib }}
           CC=/usr/bin/aarch64-linux-gnu-gcc \
           CXX=/usr/bin/aarch64-linux-gnu-g++ \
           AR=/usr/bin/aarch64-linux-gnu-ar \
           ./configure --prefix=/tmp/arm64-deps --host=aarch64-linux-gnu --static
+          make -j$(nproc)
+          make install
+          cd ..
+
+          echo "[+] Building OpenSSL for ARM64..."
+          rm -rf openssl-arm64
+          wget https://github.com/openssl/openssl/releases/download/openssl-${{ env.tdbuild_versions_openssl }}/openssl-${{ env.tdbuild_versions_openssl }}.tar.gz
+          tar -xf openssl-${{ env.tdbuild_versions_openssl }}.tar.gz
+          cd openssl-${{ env.tdbuild_versions_openssl }}
+          CC=/usr/bin/aarch64-linux-gnu-gcc \
+          CXX=/usr/bin/aarch64-linux-gnu-g++ \
+          AR=/usr/bin/aarch64-linux-gnu-ar \
+          ./Configure linux-aarch64 --prefix=/tmp/arm64-deps --openssldir=/tmp/arm64-deps/ssl \
+            no-shared no-tests
           make -j$(nproc)
           make install
           cd ..
