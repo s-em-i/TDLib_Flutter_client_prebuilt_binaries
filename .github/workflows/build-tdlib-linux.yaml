@@ -200,7 +200,7 @@ jobs:
                   ..
 
             echo "Building TDLib..."
-            cmake --build . -j$(nproc) V=1  # V=1 for verbose if needed
+            cmake --build . -j$(nproc)
 
             # Copy libs and headers to target
             cp example/libtdjson.a "${TDLIB_ARM_DIR}/lib/"  # Static lib (BUILD_SHARED_LIBS=OFF)
