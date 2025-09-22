@@ -104,8 +104,6 @@ jobs:
             tar -xf zlib-${{ env.tdbuild_versions_zlib }}.tar.gz
             cd zlib-${{ env.tdbuild_versions_zlib }}
               CHOST="${CROSS_COMPILE}" \
-              ./configure \
-              --prefix="${PWD}/install" \              
               CC="${CROSS_COMPILE}-gcc" \
               CXX="${CROSS_COMPILE}-g++" \
               AR="${CROSS_COMPILE}-ar" \
@@ -113,7 +111,10 @@ jobs:
               LD="${CROSS_COMPILE}-ld" \
               NM="${CROSS_COMPILE}-nm" \
               STRIP="${CROSS_COMPILE}-strip" \
+              ./configure \
+              --prefix="${PWD}/install" \             
               --static
+              
               make -j$(nproc)
               make install
             cd ..
