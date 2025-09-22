@@ -94,20 +94,23 @@ jobs:
         run: |
           cd td && rm -rf build && mkdir build && cd build
           
-          export PATH="/usr/bin:$PATH"
-          CC=aarch64-linux-gnu-gcc \
-          CXX=aarch64-linux-gnu-g++ \
+          CC=/usr/bin/aarch64-linux-gnu-gcc \
+          CXX=/usr/bin/aarch64-linux-gnu-g++ \
+          AR=/usr/bin/aarch64-linux-gnu-ar \
+          RANLIB=/usr/bin/aarch64-linux-gnu-ranlib \
+          NM=/usr/bin/aarch64-linux-gnu-nm \
+          OBJDUMP=/usr/bin/aarch64-linux-gnu-objdump \
           cmake -DCMAKE_BUILD_TYPE=Release \
                 -DCMAKE_INSTALL_PREFIX:PATH=../tdlib-arm64-release \
                 -DTD_ENABLE_LTO=ON \
                 -DCMAKE_SYSTEM_NAME=Linux \
                 -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
-                -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc \
-                -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ \
-                -DCMAKE_AR=aarch64-linux-gnu-ar \
-                -DCMAKE_RANLIB=aarch64-linux-gnu-ranlib \
-                -DCMAKE_NM=aarch64-linux-gnu-nm \
-                -DCMAKE_OBJDUMP=aarch64-linux-gnu-objdump \
+                -DCMAKE_C_COMPILER=/usr/bin/aarch64-linux-gnu-gcc \
+                -DCMAKE_CXX_COMPILER=/usr/bin/aarch64-linux-gnu-g++ \
+                -DCMAKE_AR=/usr/bin/aarch64-linux-gnu-ar \
+                -DCMAKE_RANLIB=/usr/bin/aarch64-linux-gnu-ranlib \
+                -DCMAKE_NM=/usr/bin/aarch64-linux-gnu-nm \
+                -DCMAKE_OBJDUMP=/usr/bin/aarch64-linux-gnu-objdump \
                 -DCMAKE_FIND_ROOT_PATH=/usr/aarch64-linux-gnu \
                 -DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER \
                 -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY \
