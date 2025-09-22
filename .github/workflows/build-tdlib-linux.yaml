@@ -92,6 +92,7 @@ jobs:
       - name: Build TDLib Linux ARM64 Release
         if: env.UPDATE_TDLIB == 'true'
         run: |
+          
           # Clang-Version
           clang-14 --version | head -1 || echo "❌ clang-14 not found"
           clang-18 --version | head -1 || echo "❌ clang-18 not found"
@@ -117,6 +118,21 @@ jobs:
           
           # Cross-Compile Dependencies zuerst (OpenSSL, Zlib - aus erfolgreichen Builds)
           echo "[+] Building ARM64 Dependencies..."
+
+          # Dependencies cross-kompilieren (OpenSSL, gperf)
+          echo "[+] Cross-compiling Dependencies..."
+          mkdir -p /tmp/arm64-deps && cd /tmp/arm64-deps
+          
+          # gperf (TDLib braucht es für Generierung)
+          wget http://ftp.gnu.org/pub/gnu/gperf/gperf-${{ env.tdbuild_versions_gperf }}.tar.gz
+          tar -xf gperf-${{ env.tdbuild_versions_gperf }}.tar.gz
+          cd gperf-${{ env.tdbuild_versions_gperf }}
+          CC=/usr/bin/aarch64-linux-gnu-gcc \
+          ./configure --prefix=/tmp/arm64-deps --host=aarch64-linux-gnu
+          make -j$(nproc)
+          make install
+          cd /tmp/arm64-deps
+        
           mkdir -p td/third-party && cd td/third-party
           
           # Zlib cross-compile (minimal)
@@ -131,20 +147,20 @@ jobs:
           #make -j$(nproc)
           #make install
           #cd ..
-
+          
+          # OpenSSL cross-compile
           echo "[+] Building OpenSSL for ARM64..."
-          rm -rf openssl-arm64
+          cd /tmp/arm64-deps
           wget https://github.com/openssl/openssl/releases/download/openssl-${{ env.tdbuild_versions_openssl }}/openssl-${{ env.tdbuild_versions_openssl }}.tar.gz
           tar -xf openssl-${{ env.tdbuild_versions_openssl }}.tar.gz
           cd openssl-${{ env.tdbuild_versions_openssl }}
           CC=/usr/bin/aarch64-linux-gnu-gcc \
           CXX=/usr/bin/aarch64-linux-gnu-g++ \
           AR=/usr/bin/aarch64-linux-gnu-ar \
-          ./Configure linux-aarch64 --prefix=/tmp/arm64-deps --openssldir=/tmp/arm64-deps/ssl \
-            no-shared no-tests no-zlib  # ← no-zlib hinzufügen!
+          ./Configure linux-aarch64 --prefix=/tmp/arm64-deps --openssldir=/tmp/arm64-deps/ssl no-shared no-tests
           make -j$(nproc)
           make install
-          cd ..
+          cd /home/runner/work/TDLib_Flutter_client_prebuilt_binaries/TDLib_Flutter_client_prebuilt_binaries/td  # Zurück zu td/
           
           # TDLib ARM64 Build
           cd ..
@@ -167,39 +183,28 @@ jobs:
                 -DCMAKE_RANLIB=/usr/bin/aarch64-linux-gnu-ranlib \
                 -DCMAKE_NM=/usr/bin/aarch64-linux-gnu-nm \
                 -DCMAKE_OBJDUMP=/usr/bin/aarch64-linux-gnu-objdump \
-                -DCMAKE_FIND_ROOT_PATH=/tmp/arm64-deps;/usr/aarch64-linux-gnu \  # ← Dependencies + Sysroot
+                -DCMAKE_FIND_ROOT_PATH=/tmp/arm64-deps;/usr/aarch64-linux-gnu \
                 -DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER \
                 -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY \
                 -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY \
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ONLY \
-                -DTD_ENABLE_CPP_DRIVER_GENERATOR=OFF \  # ← Generierung deaktivieren (wie in deinen Logs)
-                -DTD_ENABLE_TESTS=OFF \  # ← Tests deaktivieren (vermeidet Sanitizer-Fehler)
-                -DZLIB_LIBRARY=/tmp/arm64-deps/lib/libz.a \  # ← Statische Zlib
-                -DZLIB_INCLUDE_DIR=/tmp/arm64-deps/include \
-                -DOPENSSL_ROOT_DIR=/usr/aarch64-linux-gnu \  # ← System OpenSSL
-                -DCMAKE_C_FLAGS="-O3 -march=armv8-a" \  # ← ARM64-Optimierung
+                -DCPP_DRIVER_GENERATOR=OFF \  # Generierung deaktivieren
+                -DTD_ENABLE_TESTS=OFF \  # Tests deaktivieren
+                -DOPENSSL_ROOT_DIR=/tmp/arm64-deps \
+                -DOPENSSL_INCLUDE_DIR=/tmp/arm64-deps/include \
+                -DOPENSSL_CRYPTO_LIBRARY=/tmp/arm64-deps/lib/libcrypto.a \
+                -DOPENSSL_SSL_LIBRARY=/tmp/arm64-deps/lib/libssl.a \
+                -DCMAKE_C_FLAGS="-O3 -march=armv8-a" \
                 -DCMAKE_CXX_FLAGS="-O3 -march=armv8-a -std=c++17" \
                 ..
           
-          echo "[+] CMake configured successfully!"
-          
-          # Build mit maximaler Parallelität
-          cmake --build . --parallel $(nproc) VERBOSE=1  # ← Verbose für Debugging
-          
+          cmake --build . --parallel $(nproc)
           cmake --install .
           cd .. && cd ..
           
-          # Verification
           echo "[+] ARM64 Release Verification:"
-          if [ -f "tdlib-arm64-release/lib/libtdjson.so" ]; then
-            file tdlib-arm64-release/lib/libtdjson.so
-            ls -lh tdlib-arm64-release/lib/libtdjson.*
-            echo "ARM64 Build successful!"
-          else
-            echo "libtdjson.so not found!"
-            find . -name "libtdjson*" -type f || echo "No libtdjson found"
-            exit 1
-          fi
+          file tdlib-arm64-release/lib/libtdjson.so
+          ls -lh tdlib-arm64-release/lib/libtdjson.*
           
       - name: Verify Binaries
         if: env.UPDATE_TDLIB == 'false'
