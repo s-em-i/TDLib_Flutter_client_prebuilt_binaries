@@ -103,9 +103,9 @@ jobs:
             wget https://zlib.net/zlib-${{ env.tdbuild_versions_zlib }}.tar.gz
             tar -xf zlib-${{ env.tdbuild_versions_zlib }}.tar.gz
             cd zlib-${{ env.tdbuild_versions_zlib }}
-              ./configure \
-              --prefix="${PWD}/install" \
               CHOST="${CROSS_COMPILE}" \
+              ./configure \
+              --prefix="${PWD}/install" \              
               CC="${CROSS_COMPILE}-gcc" \
               CXX="${CROSS_COMPILE}-g++" \
               AR="${CROSS_COMPILE}-ar" \
