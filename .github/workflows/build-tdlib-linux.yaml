@@ -191,7 +191,14 @@ jobs:
                 -DTD_ENABLE_CPP_DRIVER_GENERATOR=OFF \
                 -DTD_ENABLE_TESTS=OFF \
                 -DTD_ENABLE_GENERATED_FILES=OFF \
+                -DCMAKE_VERBOSE_MAKEFILE=ON \  # ← Neu: Zeigt alle Tool-Aufrufe!
                 ..
+    
+          # Prüfe, welche Tools CMake wirklich verwendet
+          echo "[+] Checking CMake Tool Usage..."
+          grep -i "CMAKE_" CMakeCache.txt | grep -E "(AR|RANLIB|NM|OBJDUMP|COMPILER)"
+          echo "[+] Tool files exist?"
+          ls -la /usr/bin/llvm-ar-14 /usr/bin/llvm-nm-14 2>/dev/null || echo "LLVM-14 tools missing"  
           
           cmake --build . --parallel $(nproc)
           cmake --install .
