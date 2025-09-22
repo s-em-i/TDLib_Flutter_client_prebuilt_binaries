@@ -55,7 +55,6 @@ jobs:
           sudo apt-get update && sudo apt-get upgrade -y
           sudo apt-get install -y make git zlib1g-dev libssl-dev gperf php-cli cmake clang-14 libc++-14-dev libc++abi-14-dev
           
-          # Setze Clang-14 als Default (offiziell)
           sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-14 100
           sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-14 100
       
@@ -95,6 +94,7 @@ jobs:
         run: |
           cd td && rm -rf build && mkdir build && cd build
           
+          export PATH="/usr/bin:$PATH"
           CC=aarch64-linux-gnu-gcc \
           CXX=aarch64-linux-gnu-g++ \
           cmake -DCMAKE_BUILD_TYPE=Release \
