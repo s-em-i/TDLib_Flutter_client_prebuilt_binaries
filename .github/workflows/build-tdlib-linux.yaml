@@ -54,6 +54,7 @@ jobs:
         run: |
           sudo apt-get update && sudo apt-get upgrade -y
           sudo apt-get install -y make git zlib1g-dev libssl-dev gperf php-cli cmake clang-14 libc++-14-dev libc++abi-14-dev build-essential
+          sudo apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu g++-aarch64-linux-gnu binutils-aarch64-linux-gnu
           
           sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-14 100
           sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-14 100
@@ -82,8 +83,7 @@ jobs:
           
           cmake --build . --parallel $(nproc)
           cmake --install .
-          cd ..
-          cd ..
+          cd .. && cd ..
           
           echo "[+] x86_64 Release Verification:"
           file td/tdlib-x86_64-release/lib/libtdjson.so
@@ -93,6 +93,12 @@ jobs:
         if: env.UPDATE_TDLIB == 'true'
         run: |
           cd td && rm -rf build && mkdir build && cd build
+
+          # Prüfe Installation
+          which aarch64-linux-gnu-gcc || echo "❌ Still not found after install"
+          aarch64-linux-gnu-gcc --version | head -1 || echo "❌ Version check failed"
+          ls -la /usr/bin/aarch64-linux-gnu-* | head -3 || echo "❌ Binaries missing"
+          
           # Prüfe, ob die Pakete installiert sind
           dpkg -l | grep gcc-aarch64-linux-gnu || echo "gcc-aarch64-linux-gnu not installed"
           dpkg -l | grep g++-aarch64-linux-gnu || echo "g++-aarch64-linux-gnu not installed"
@@ -115,7 +121,7 @@ jobs:
 
           ls -l /usr/bin/gcc*
           ls -l /usr/bin/arch64*
-
+          ls -l /usr/bin/*
           
           echo "[+] Verifying ARM64 Cross-Compiler..."
           which aarch64-linux-gnu-gcc || echo "aarch64-linux-gnu-gcc not found"
@@ -147,8 +153,7 @@ jobs:
           
           cmake --build . --parallel $(nproc)
           cmake --install .
-          cd ..
-          cd ..
+          cd .. && cd ..
           
           echo "[+] ARM64 Release Verification:"
           file td/tdlib-arm64-release/lib/libtdjson.so
