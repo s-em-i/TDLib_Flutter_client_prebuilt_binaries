@@ -53,77 +53,39 @@ jobs:
         if: env.UPDATE_TDLIB == 'true'
         run: |
           sudo apt-get update
-          sudo dpkg --configure -a || true
-          sudo apt-get install -f || true
-          sudo apt-get install -y --no-install-recommends make git zlib1g-dev libssl-dev gperf php-cli cmake ninja-build wget curl build-essential
-      
-          echo "[+] Adding LLVM APT Repository for Clang-18..."
-          wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-          sudo add-apt-repository "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main"
-          sudo apt-get update
-      
-          sudo apt-get install -y --no-install-recommends clang-18 lld-18 llvm-18 libc++-18-dev libc++abi-18-dev
-      
-          sudo apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu g++-aarch64-linux-gnu binutils-aarch64-linux-gnu libc6-dev-arm64-cross libgcc-11-dev-arm64-cross linux-libc-dev-arm64-cross
+          sudo apt-get upgrade -y  # Offiziell empfohlen
+          sudo apt-get install -y make git zlib1g-dev libssl-dev gperf php-cli cmake clang-14 libc++-14-dev libc++abi-14-dev  # Offiziell für Ubuntu 22.04
           
-          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-18 100
-          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-18 100
-          sudo update-alternatives --install /usr/bin/ld.lld ld.lld /usr/bin/lld-18 100
-          
-          echo "[+] Testing ARM64 C++ with GCC..."
-          echo '#include <iostream>
-          int main(){std::cout << "GCC ARM64 C++!\\n";return 0;}' | \
-            aarch64-linux-gnu-g++ -std=c++17 -O3 -x c++ - -o test_cxx_gcc
-          
-          if file test_cxx_gcc | grep -q "aarch64"; then
-            echo "ARM64 GCC C++ successful!"
-            rm test_cxx_gcc
-          else
-            echo "ARM64 GCC C++ failed!"
-            exit 1
-          fi
-          
-          echo "[+] Available ARM64 libraries:"
-          ls -la /usr/aarch64-linux-gnu/lib/*.so* 2>/dev/null | head -5 || echo "No ARM64 libs found"
+          # Setze Clang-14 als Default (offiziell)
+          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-14 100
+          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-14 100
       
       - name: Re-clone TDlib and build it for Linux
-        if: env.UPDATE_TDLIB == 'false'
-        run: |
-          rm -rf td
-          git clone https://github.com/tdlib/td.git
-          cd td && git checkout $commit_hash
-          rm -rf build && mkdir build && cd build
-          chmod +x .github/workflows/build-multiarch.sh
-          .github/workflows/build-multiarch.sh
-          
-      - name: Build TDLib x86_64 Release (Test)
         if: env.UPDATE_TDLIB == 'true'
         run: |
           rm -rf td
           git clone https://github.com/tdlib/td.git
           cd td && git checkout $commit_hash
           rm -rf build && mkdir build && cd build
-          
-          echo "[+] Building TDLib x86_64 Release (Clang-18)..."
-          mkdir -p build-x86_64-test && cd build-x86_64-test
-          
-          CC=clang-18 CXX=clang++-18 \
+          #chmod +x .github/workflows/build-multiarch.sh
+          #.github/workflows/build-multiarch.sh
+
+          CXXFLAGS="-stdlib=libc++" CC=/usr/bin/clang-14 CXX=/usr/bin/clang++-14 \
           cmake -DCMAKE_BUILD_TYPE=Release \
-                -DCMAKE_INSTALL_PREFIX=../tdlib-x86_64-test \
+                -DCMAKE_INSTALL_PREFIX:PATH=../tdlib \
                 -DTD_ENABLE_LTO=ON \
-                -DCMAKE_C_FLAGS="-fuse-ld=lld" \
-                -DCMAKE_CXX_FLAGS="-fuse-ld=lld -stdlib=libc++" \
-                -G Ninja \
-                ../..
+                -DCMAKE_AR=/usr/bin/llvm-ar-14 \
+                -DCMAKE_NM=/usr/bin/llvm-nm-14 \
+                -DCMAKE_OBJDUMP=/usr/bin/llvm-objdump-14 \
+                -DCMAKE_RANLIB=/usr/bin/llvm-ranlib-14 \
+                ..
           
-          cmake --build . --parallel $(nproc)
-          cmake --install .
-          cd ..
+          cmake --build . --target install
+          cd .. && cd ..
           
-          # Verify
-          echo "[+] x86_64 Build Verification:"
-          file tdlib-x86_64-test/lib/libtdjson.so
-          ls -lh tdlib-x86_64-test/lib/libtdjson.*
+          ls -l td/tdlib
+          file td/tdlib/lib/libtdjson.so
+          ls -lh td/tdlib/lib/libtdjson.*          
 
       - name: Verify Binaries
         run: |
