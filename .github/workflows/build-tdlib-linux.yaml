@@ -166,6 +166,20 @@ jobs:
             rm -rf "${TDLIB_ARM_DIR}"
             mkdir -p "${TDLIB_ARM_DIR}/lib"
             mkdir -p "${TDLIB_ARM_DIR}/include"
+
+            # Native build for generate files only (host tools for prepare_cross_compiling)
+            echo "Preparing native generate files..."
+            rm -rf native_build
+            mkdir native_build && cd native_build
+              cmake -G Ninja \
+                    -DCMAKE_BUILD_TYPE=Release \
+                    -DTD_ENABLE_JNI=OFF \
+                    -DTD_ENABLE_DOTNET=OFF \
+                    -DTD_ENABLE_PYTHON=OFF \
+                    -DTD_ENABLE_TESTS=OFF \
+                    ..
+              cmake --build . --target prepare_cross_compiling
+            cd .. 
             
             # Create temporary toolchain file
             printf '%s\n' \
@@ -176,6 +190,7 @@ jobs:
             "set(CMAKE_AR ${CROSS_COMPILE}-ar)" \
             "set(CMAKE_RANLIB ${CROSS_COMPILE}-ranlib)" \
             "set(CMAKE_STRIP ${CROSS_COMPILE}-strip)" \
+            'set(CMAKE_CROSSCOMPILING ON)' \
             "set(CMAKE_FIND_ROOT_PATH /usr/${CROSS_COMPILE} ${OPENSSL_ROOT_DIR} ${ZLIB_ROOT})" \
             "set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)" \
             "set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)" \
@@ -184,6 +199,7 @@ jobs:
             '' > "${TEMP_TOOLCHAIN}"
 
             rm -rf build && mkdir build && cd build
+              cp -r ../native_build/generate/* ../
 
             echo "Configuring TDLib with CMake..."
             cmake -G Ninja \
