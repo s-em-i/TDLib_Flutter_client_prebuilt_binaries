@@ -53,7 +53,7 @@ jobs:
         if: env.UPDATE_TDLIB == 'true'
         run: |
           sudo apt-get update && sudo apt-get upgrade -y
-          sudo apt-get install -y make git zlib1g-dev libssl-dev gperf php-cli cmake clang-14 libc++-14-dev libc++abi-14-dev
+          sudo apt-get install -y make git zlib1g-dev libssl-dev gperf php-cli cmake clang-14 libc++-14-dev libc++abi-14-dev build-essential
           
           sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-14 100
           sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-14 100
@@ -94,6 +94,11 @@ jobs:
         run: |
           cd td && rm -rf build && mkdir build && cd build
           
+          echo "[+] Verifying ARM64 Cross-Compiler..."
+          which aarch64-linux-gnu-gcc || echo "aarch64-linux-gnu-gcc not found"
+          aarch64-linux-gnu-gcc --version | head -1 || echo "GCC version failed"
+          ls -la /usr/bin/aarch64-linux-gnu-* | head -3 || echo "Cross-tools missing"
+                    
           CC=/usr/bin/aarch64-linux-gnu-gcc \
           CXX=/usr/bin/aarch64-linux-gnu-g++ \
           AR=/usr/bin/aarch64-linux-gnu-ar \
