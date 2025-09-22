@@ -117,7 +117,7 @@ jobs:
         if: env.UPDATE_TDLIB == 'true'
         run: |
           cd td
-            TARGET_DIR="third_party/openssl/linux-arm64"
+            TARGET_DIR="${PWD}/third_party/openssl/linux-arm64"
             CROSS_COMPILE="aarch64-linux-gnu-"
             rm -rf "${TARGET_DIR}"
             mkdir -p "${TARGET_DIR}/lib"
