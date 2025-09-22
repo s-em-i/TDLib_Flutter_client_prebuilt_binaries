@@ -112,7 +112,7 @@ jobs:
               export NM="${CROSS_COMPILE}nm"
               export STRIP="${CROSS_COMPILE}strip"
               export CFLAGS="--sysroot=/usr/aarch64-linux-gnu"
-              ./configure --prefix="${PWD}/install" --shared=no
+              ./configure --prefix="${PWD}/install" --static
               make -j$(nproc)
               make install
               cp -r install/* $ZLIB_ARM_DIR
