@@ -94,40 +94,6 @@ jobs:
         run: |
           cd td && rm -rf build && mkdir build && cd build
 
-          # Prüfe Installation
-          which aarch64-linux-gnu-gcc || echo "❌ Still not found after install"
-          aarch64-linux-gnu-gcc --version | head -1 || echo "❌ Version check failed"
-          ls -la /usr/bin/aarch64-linux-gnu-* | head -3 || echo "❌ Binaries missing"
-          
-          # Prüfe, ob die Pakete installiert sind
-          dpkg -l | grep gcc-aarch64-linux-gnu || echo "gcc-aarch64-linux-gnu not installed"
-          dpkg -l | grep g++-aarch64-linux-gnu || echo "g++-aarch64-linux-gnu not installed"
-          
-          # Prüfe, ob die Binaries existieren
-          ls -la /usr/bin/aarch64-linux-gnu-gcc || echo "/usr/bin/aarch64-linux-gnu-gcc missing"
-          ls -la /usr/bin/aarch64-linux-gnu-g++ || echo "/usr/bin/aarch64-linux-gnu-g++ missing"
-          
-          # Shell-Cache aktualisieren
-          hash -r  # Neuen PATH laden
-          
-          # Jetzt testen
-          which aarch64-linux-gnu-gcc || echo "Still not in PATH"
-          aarch64-linux-gnu-gcc --version | head -1 || echo "GCC version failed"
-          
-          # Falls immer noch fehlt, neu installieren
-          sudo apt-get install --reinstall -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
-          hash -r
-          aarch64-linux-gnu-gcc --version | head -1
-
-          ls -l /usr/bin/gcc*
-          ls -l /usr/bin/arch64*
-          ls -l /usr/bin/*
-          
-          echo "[+] Verifying ARM64 Cross-Compiler..."
-          which aarch64-linux-gnu-gcc || echo "aarch64-linux-gnu-gcc not found"
-          aarch64-linux-gnu-gcc --version | head -1 || echo "GCC version failed"
-          ls -la /usr/bin/aarch64-linux-gnu-* | head -3 || echo "Cross-tools missing"
-                    
           CC=/usr/bin/aarch64-linux-gnu-gcc \
           CXX=/usr/bin/aarch64-linux-gnu-g++ \
           AR=/usr/bin/aarch64-linux-gnu-ar \
@@ -149,8 +115,8 @@ jobs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER \
                 -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY \
                 -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY \
-                ..
-          
+                ..  
+    
           cmake --build . --parallel $(nproc)
           cmake --install .
           cd .. && cd ..
