@@ -55,6 +55,7 @@ jobs:
           sudo apt-get update && sudo apt-get upgrade -y
           sudo apt-get install -y make git zlib1g-dev libssl-dev gperf php-cli cmake clang-14 libc++-14-dev libc++abi-14-dev build-essential libc6-dev-arm64-cross
           sudo apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu g++-aarch64-linux-gnu binutils-aarch64-linux-gnu
+          sudo apt-get install -y wget libncurses5-dev perl autoconf automake libtool pkg-config
           
           sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-14 100
           sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-14 100
@@ -89,81 +90,75 @@ jobs:
           file td/tdlib-x86_64-release/lib/libtdjson.so
           ls -lh td/tdlib-x86_64-release/lib/libtdjson.*
 
-      - name: Build TDLib Linux ARM64 Release
+      - name: Build Zlib cross-compile
         if: env.UPDATE_TDLIB == 'true'
         run: |
-          
-          # Clang-Version
-          clang-14 --version | head -1 || echo "❌ clang-14 not found"
-          clang-18 --version | head -1 || echo "❌ clang-18 not found"
-          clang --version | head -1 || echo "❌ Default clang not found"
-          
-          # LLVM-Versionen
-          ls -la /usr/lib/llvm-14/ 2>/dev/null || echo "❌ llvm-14 not found"
-          ls -la /usr/lib/llvm-18/ 2>/dev/null || echo "❌ llvm-18 not found"
-          
-          # Welche Version ist aktiv?
-          echo "[+] Active LLVM version:"
-          llvm-config --version 2>/dev/null || echo "❌ llvm-config not found"
-          ldd --version | head -1  # System Linker-Version
-          
-          # Sanitizer-Pfade prüfen
-          echo "[+] Sanitizer libraries:"
-          find /usr/lib/llvm* -name "*ubsan*" 2>/dev/null | head -5 || echo "No ubsan libraries found"
-          
-          # Update-alternatives Status
-          echo "[+] Update-alternatives:"
-          update-alternatives --display clang || echo "No alternatives for clang"
-          update-alternatives --display clang++ || echo "No alternatives for clang++"
-          
-          # Cross-Compile Dependencies zuerst (OpenSSL, Zlib - aus erfolgreichen Builds)
-          echo "[+] Building ARM64 Dependencies..."
-
-          # Dependencies cross-kompilieren (OpenSSL, gperf)
-          echo "[+] Cross-compiling Dependencies..."
-          mkdir -p /tmp/arm64-deps && cd /tmp/arm64-deps
-          
-          # gperf (TDLib braucht es für Generierung)
-          wget http://ftp.gnu.org/pub/gnu/gperf/gperf-${{ env.tdbuild_versions_gperf }}.tar.gz
-          tar -xf gperf-${{ env.tdbuild_versions_gperf }}.tar.gz
-          cd gperf-${{ env.tdbuild_versions_gperf }}
-          CC=/usr/bin/aarch64-linux-gnu-gcc \
-          ./configure --prefix=/tmp/arm64-deps --host=aarch64-linux-gnu
-          make -j$(nproc)
-          make install
-          cd /tmp/arm64-deps
-        
           mkdir -p td/third-party && cd td/third-party
-          
+
           # Zlib cross-compile (minimal)
-          #rm -rf zlib-arm64
-          #wget https://zlib.net/zlib-${{ env.tdbuild_versions_zlib }}.tar.gz
-          #tar -xf zlib-${{ env.tdbuild_versions_zlib }}.tar.gz
-          #cd zlib-${{ env.tdbuild_versions_zlib }}
-          #CC=/usr/bin/aarch64-linux-gnu-gcc \
-          #CXX=/usr/bin/aarch64-linux-gnu-g++ \
-          #AR=/usr/bin/aarch64-linux-gnu-ar \
-          #./configure --prefix=/tmp/arm64-deps --host=aarch64-linux-gnu --static
-          #make -j$(nproc)
-          #make install
-          #cd ..
-          
-          # OpenSSL cross-compile
-          echo "[+] Building OpenSSL for ARM64..."
-          cd /tmp/arm64-deps
+          wget https://zlib.net/zlib-${{ env.tdbuild_versions_zlib }}.tar.gz
+          tar -xf zlib-${{ env.tdbuild_versions_zlib }}.tar.gz
+          cd zlib-${{ env.tdbuild_versions_zlib }}
+            mkdir -p build/arm64
+            CHOST=aarch64-linux-gnu \
+            CC=aarch64-linux-gnu-gcc \
+            CXX=aarch64-linux-gnu-g++ \
+            AR=aarch64-linux-gnu-ar \
+            RANLIB=aarch64-linux-gnu-ranlib \
+            LD=aarch64-linux-gnu-ld \
+            NM=aarch64-linux-gnu-nm\
+            STRIP=aarch64-linux-gnu-strip\    
+            ./configure --prefix=build/arm64 --static
+            make -j$(nproc)
+            make install
+          cd ..
+
+      - name: Build OpenSSL cross-compile
+        if: env.UPDATE_TDLIB == 'true'
+        run: |
           wget https://github.com/openssl/openssl/releases/download/openssl-${{ env.tdbuild_versions_openssl }}/openssl-${{ env.tdbuild_versions_openssl }}.tar.gz
           tar -xf openssl-${{ env.tdbuild_versions_openssl }}.tar.gz
           cd openssl-${{ env.tdbuild_versions_openssl }}
-          CC=/usr/bin/aarch64-linux-gnu-gcc \
-          CXX=/usr/bin/aarch64-linux-gnu-g++ \
-          AR=/usr/bin/aarch64-linux-gnu-ar \
-          ./Configure linux-aarch64 --prefix=/tmp/arm64-deps --openssldir=/tmp/arm64-deps/ssl no-shared no-tests
-          make -j$(nproc)
-          make install
-          cd /home/runner/work/TDLib_Flutter_client_prebuilt_binaries/TDLib_Flutter_client_prebuilt_binaries/td  # Zurück zu td/
-          
-          # TDLib ARM64 Build
+            OPENSSL_BUILD_DIR="${GITHUB_WORKSPACE}/openssl-build-arm64"
+
+            echo "Configuring OpenSSL for ARM64 cross-compile..."
+            ./Configure \
+            --cross-compile-prefix=aarch64-linux-gnu-linux-aarch64 \
+            --prefix="${OPENSSL_BUILD_DIR}/openssl-install" \\
+            --openssldir="${OPENSSL_BUILD_DIR}/openssl-install/ssl" \
+            --libdir="${OPENSSL_BUILD_DIR}/openssl-install/lib" \
+            no-shared no-tests            
+            make -j$(nproc)
+            make install DESTDIR="${OPENSSL_BUILD_DIR}"
           cd ..
+
+          cd "${OPENSSL_BUILD_DIR}/openssl-install/lib"
+            ln -sf libssl.a libssl_static.a
+            ln -sf libcrypto.a libcrypto_static.a
+          cd -
+
+          cat > openssl.pc << 'EOF'
+          prefix=${OPENSSL_BUILD_DIR}/openssl-install
+          exec_prefix=${prefix}
+          libdir=${exec_prefix}/lib
+          includedir=${prefix}/include
+  
+          Name: OpenSSL
+          Description: OpenSSL library for ARM64 with Zlib
+          Version: ${{ env.tdbuild_versions_openssl }}
+          Requires: zlib
+          Libs: -L${libdir} -lssl_static -lcrypto_static
+          Cflags: -I${includedir}
+          EOF
+
+          echo "OPENSSL_ROOT_DIR=${BUILD_DIR}/openssl-install" >> $GITHUB_ENV
+          echo "PKG_CONFIG_PATH=${BUILD_DIR}/openssl-install/lib/pkgconfig:${PKG_CONFIG_PATH}" >> $GITHUB_ENV
+          echo "LD_LIBRARY_PATH=${BUILD_DIR}/openssl-install/lib:${LD_LIBRARY_PATH}" >> $GITHUB_ENV
+
+      - name: Build TDLib ARM64 cross-compile
+        if: env.UPDATE_TDLIB == 'false'
+        run: |
+          cd td
           rm -rf build && mkdir build && cd build
           
           CC=/usr/bin/aarch64-linux-gnu-gcc \
