@@ -87,23 +87,43 @@ jobs:
           ls -la /usr/aarch64-linux-gnu/lib/*.so* 2>/dev/null | head -5 || echo "No ARM64 libs found"
       
       - name: Re-clone TDlib and build it for Linux
+        if: env.UPDATE_TDLIB == 'false'
+        run: |
+          rm -rf td
+          git clone https://github.com/tdlib/td.git
+          cd td && git checkout $commit_hash
+          rm -rf build && mkdir build && cd build
+          chmod +x .github/workflows/build-multiarch.sh
+          .github/workflows/build-multiarch.sh
+          
+      - name: Build TDLib x86_64 Release (Test)
         if: env.UPDATE_TDLIB == 'true'
         run: |
           rm -rf td
           git clone https://github.com/tdlib/td.git
           cd td && git checkout $commit_hash
           rm -rf build && mkdir build && cd build
-          #CXXFLAGS="-stdlib=libc++" CC=/usr/bin/clang-18 CXX=/usr/bin/clang++-18 cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX:PATH=../tdlib -DTD_ENABLE_LTO=ON -DCMAKE_AR=/usr/bin/llvm-ar-18 -DCMAKE_NM=/usr/bin/llvm-nm-18 -DCMAKE_OBJDUMP=/usr/bin/llvm-objdump-18 -DCMAKE_RANLIB=/usr/bin/llvm-ranlib-18 ..
-          #cmake --build . --target install
-          #cd .. && cd .. && ls -l td/tdlib && cd td
-          #echo "Compressing..."
-          #rm -f tdlib-linux.zip tdlib-debug-linux.zip
-          #jar -cMf tdlib-debug-linux.zip tdlib
-          #rm tdlib/libs/*/*.debug
-          #jar -cMf tdlib-linux.zip tdlib
-          #mv tdlib-linux.zip tdlib-debug-linux.zip tdlib
-          chmod +x .github/workflows/build-multiarch.sh
-          .github/workflows/build-multiarch.sh
+          
+          echo "[+] Building TDLib x86_64 Release (Clang-18)..."
+          mkdir -p build-x86_64-test && cd build-x86_64-test
+          
+          CC=clang-18 CXX=clang++-18 \
+          cmake -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_INSTALL_PREFIX=../tdlib-x86_64-test \
+                -DTD_ENABLE_LTO=ON \
+                -DCMAKE_C_FLAGS="-fuse-ld=lld" \
+                -DCMAKE_CXX_FLAGS="-fuse-ld=lld -stdlib=libc++" \
+                -G Ninja \
+                ..
+          
+          cmake --build . --parallel $(nproc)
+          cmake --install .
+          cd ..
+          
+          # Verify
+          echo "[+] x86_64 Build Verification:"
+          file tdlib-x86_64-test/lib/libtdjson.so
+          ls -lh tdlib-x86_64-test/lib/libtdjson.*
 
       - name: Verify Binaries
         run: |
