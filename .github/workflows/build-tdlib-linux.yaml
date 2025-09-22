@@ -52,27 +52,28 @@ jobs:
       - name: install build essentials
         if: env.UPDATE_TDLIB == 'true'
         run: |
-          sudo apt-get update
-          sudo apt-get upgrade -y  # Offiziell empfohlen
-          sudo apt-get install -y make git zlib1g-dev libssl-dev gperf php-cli cmake clang-14 libc++-14-dev libc++abi-14-dev  # Offiziell für Ubuntu 22.04
+          sudo apt-get update && sudo apt-get upgrade -y
+          sudo apt-get install -y make git zlib1g-dev libssl-dev gperf php-cli cmake clang-14 libc++-14-dev libc++abi-14-dev
           
           # Setze Clang-14 als Default (offiziell)
           sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-14 100
           sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-14 100
       
-      - name: Re-clone TDlib and build it for Linux
+      - name: Re-clone TDlib
         if: env.UPDATE_TDLIB == 'true'
         run: |
           rm -rf td
           git clone https://github.com/tdlib/td.git
-          cd td && git checkout $commit_hash
-          rm -rf build && mkdir build && cd build
-          #chmod +x .github/workflows/build-multiarch.sh
-          #.github/workflows/build-multiarch.sh
+          cd td && git checkout $commit_hash 
+          
+      - name: Build TDLib Linux x86_64 Release
+        if: env.UPDATE_TDLIB == 'false'
+        run: |
+          cd td && rm -rf build && mkdir build && cd build
 
           CXXFLAGS="-stdlib=libc++" CC=/usr/bin/clang-14 CXX=/usr/bin/clang++-14 \
           cmake -DCMAKE_BUILD_TYPE=Release \
-                -DCMAKE_INSTALL_PREFIX:PATH=../tdlib \
+                -DCMAKE_INSTALL_PREFIX:PATH=../tdlib-x86_64-release \
                 -DTD_ENABLE_LTO=ON \
                 -DCMAKE_AR=/usr/bin/llvm-ar-14 \
                 -DCMAKE_NM=/usr/bin/llvm-nm-14 \
@@ -80,14 +81,50 @@ jobs:
                 -DCMAKE_RANLIB=/usr/bin/llvm-ranlib-14 \
                 ..
           
-          cmake --build . --target install
-          cd .. && cd ..
+          cmake --build . --parallel $(nproc)
+          cmake --install .
+          cd ..
+          cd ..
           
-          ls -l td/tdlib
-          file td/tdlib/lib/libtdjson.so
-          ls -lh td/tdlib/lib/libtdjson.*          
+          echo "[+] x86_64 Release Verification:"
+          file td/tdlib-x86_64-release/lib/libtdjson.so
+          ls -lh td/tdlib-x86_64-release/lib/libtdjson.*
 
+      - name: Build TDLib Linux ARM64 Release
+        if: env.UPDATE_TDLIB == 'true'
+        run: |
+          cd td && rm -rf build && mkdir build && cd build
+          
+          CC=aarch64-linux-gnu-gcc \
+          CXX=aarch64-linux-gnu-g++ \
+          cmake -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_INSTALL_PREFIX:PATH=../tdlib-arm64-release \
+                -DTD_ENABLE_LTO=ON \
+                -DCMAKE_SYSTEM_NAME=Linux \
+                -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
+                -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc \
+                -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ \
+                -DCMAKE_AR=aarch64-linux-gnu-ar \
+                -DCMAKE_RANLIB=aarch64-linux-gnu-ranlib \
+                -DCMAKE_NM=aarch64-linux-gnu-nm \
+                -DCMAKE_OBJDUMP=aarch64-linux-gnu-objdump \
+                -DCMAKE_FIND_ROOT_PATH=/usr/aarch64-linux-gnu \
+                -DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER \
+                -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY \
+                -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY \
+                ..
+          
+          cmake --build . --parallel $(nproc)
+          cmake --install .
+          cd ..
+          cd ..
+          
+          echo "[+] ARM64 Release Verification:"
+          file td/tdlib-arm64-release/lib/libtdjson.so
+          ls -lh td/tdlib-arm64-release/lib/libtdjson.*
+          
       - name: Verify Binaries
+        if: env.UPDATE_TDLIB == 'false'
         run: |
           cd td/build
           echo "=== x86_64 Release ==="
@@ -100,6 +137,7 @@ jobs:
           ls -lh ../tdlib-*-release/lib/libtdjson.*
       
       - name: Create Release Archives
+        if: env.UPDATE_TDLIB == 'false'
         run: |
           cd td/build
           
@@ -111,7 +149,7 @@ jobs:
           ls -lh ../tdlib-*.zip
 
       - name: Upload to Telegram
-        if: env.UPDATE_TDLIB == 'true'
+        if: env.UPDATE_TDLIB == 'false'
         env:
           API_ID: ${{ secrets.TELEGRAM_API_ID }}
           API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
