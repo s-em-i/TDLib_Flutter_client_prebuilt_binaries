@@ -110,7 +110,6 @@ jobs:
               export LD="${CROSS_COMPILE}-ld"
               export NM="${CROSS_COMPILE}-nm"
               export STRIP="${CROSS_COMPILE}-strip"
-              #export CFLAGS="--sysroot=/usr/aarch64-linux-gnu"
               ./configure --prefix="${PWD}/install" --static
               make -j$(nproc) || make libz.a -j$(nproc)
               make install
@@ -135,7 +134,7 @@ jobs:
               --cross-compile-prefix="${CROSS_COMPILE}-" \
               --prefix="${PWD}/install" \
               --openssldir="${PWD}/install" \
-              LD="${CROSS_COMPILE}ld" \
+              LD="${CROSS_COMPILE}-ld" \
               linux-aarch64 \
               no-shared \
               no-asm \
@@ -144,8 +143,8 @@ jobs:
               make build_libs -j$(nproc) V=1
               cp libcrypto.a "${OPENSSL_ARM_DIR}/lib/"
               cp libssl.a "${OPENSSL_ARM_DIR}/lib/"
-              "${CROSS_COMPILE}strip" --strip-unneeded "${OPENSSL_ARM_DIR}/lib/libcrypto.a"
-              "${CROSS_COMPILE}strip" --strip-unneeded "${OPENSSL_ARM_DIR}/lib/libssl.a"
+              "${CROSS_COMPILE}-strip" --strip-unneeded "${OPENSSL_ARM_DIR}/lib/libcrypto.a"
+              "${CROSS_COMPILE}-strip" --strip-unneeded "${OPENSSL_ARM_DIR}/lib/libssl.a"
               cp -r include/openssl "${OPENSSL_ARM_DIR}/include/"
             cd ..
   
