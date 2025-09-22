@@ -117,6 +117,7 @@ jobs:
             cd ..
             echo "CROSS_COMPILE=$CROSS_COMPILE" >> $GITHUB_ENV
             echo "ZLIB_ARM_DIR=$ZLIB_ARM_DIR" >> $GITHUB_ENV
+            echo "ZLIB_ROOT=$ZLIB_ARM_DIR" >> $GITHUB_ENV
 
       - name: Build OpenSSL cross-compile
         if: env.UPDATE_TDLIB == 'true'
@@ -149,6 +150,7 @@ jobs:
             cd ..
   
             echo "OPENSSL_ARM_DIR=$OPENSSL_ARM_DIR" >> $GITHUB_ENV
+            echo "OPENSSL_ROOT_DIR=$OPENSSL_ARM_DIR" >> $GITHUB_ENV
             #echo "PKG_CONFIG_PATH=${BUILD_DIR}/openssl-install/lib/pkgconfig:${PKG_CONFIG_PATH}" >> $GITHUB_ENV
             #echo "LD_LIBRARY_PATH=${BUILD_DIR}/openssl-install/lib:${LD_LIBRARY_PATH}" >> $GITHUB_ENV
 
