@@ -60,6 +60,51 @@ jobs:
           sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-14 100
           sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-14 100
       
+      - name: Build Zlib for host x86_64
+        if: env.UPDATE_TDLIB == 'true'
+        run: |
+          cd td
+            ZLIB_ROOT="${PWD}/third_party/zlib/linux-x86_64"
+            echo "ZLIB_ROOT=$ZLIB_ROOT" >> $GITHUB_ENV
+            ZLIB_SRC_DIR="${PWD}/zlib-${{ env.tdbuild_versions_zlib }}"
+            echo "ZLIB_SRC_DIR=$ZLIB_SRC_DIR" >> $GITHUB_ENV
+            
+            rm -rf "${ZLIB_ROOT}" && mkdir -p "${ZLIB_ROOT}"
+            wget https://zlib.net/zlib-${{ env.tdbuild_versions_zlib }}.tar.gz
+            tar -xf zlib-${{ env.tdbuild_versions_zlib }}.tar.gz
+            cd $ZLIB_SRC_DIR
+              ./configure --prefix="${PWD}/install" --static
+              make -j$(nproc) || make libz.a -j$(nproc)
+              make install
+              cp -r install/* $ZLIB_ROOT
+            cd ..
+
+      - name: Build OpenSSL for host x86_64
+        if: env.UPDATE_TDLIB == 'true'
+        run: |
+          cd td
+            OPENSSL_ROOT_DIR="${PWD}/third_party/openssl/linux-x86_64"
+            echo "OPENSSL_ROOT_DIR=$OPENSSL_ROOT_DIR" >> $GITHUB_ENV    
+            OPENSSL_SRC_DIR="${PWD}/openssl-${{ env.tdbuild_versions_openssl }}"
+            echo "OPENSSL_SRC_DIR=$OPENSSL_SRC_DIR" >> $GITHUB_ENV
+            
+            rm -rf "${OPENSSL_ROOT_DIR}" && mkdir -p "${OPENSSL_ROOT_DIR}/lib" && mkdir -p "${OPENSSL_ROOT_DIR}/include"            
+            wget https://github.com/openssl/openssl/releases/download/openssl-${{ env.tdbuild_versions_openssl }}/openssl-${{ env.tdbuild_versions_openssl }}.tar.gz
+            tar -xf openssl-${{ env.tdbuild_versions_openssl }}.tar.gz
+            cd $OPENSSL_SRC_DIR             
+              echo "Configuring OpenSSL for ARM64 cross-compile..."
+              ./Configure \
+              linux-x86_64 \
+              --prefix="${PWD}/install" \
+              --openssldir="${PWD}/install" \
+              -static
+              make -j$(nproc) || make build_libs -j$(nproc)
+              cp libcrypto.a "${OPENSSL_ROOT_DIR}/lib/"
+              cp libssl.a "${OPENSSL_ROOT_DIR}/lib/"
+              cp -r include/openssl "${OPENSSL_ROOT_DIR}/include/"
+            cd ..
+            echo "UPDATE_TDLIB=false" >> $GITHUB_ENV
+            
       - name: Re-clone TDlib
         if: env.UPDATE_TDLIB == 'true'
         run: |
@@ -95,6 +140,8 @@ jobs:
         run: |
           cd td
             CROSS_COMPILE="aarch64-linux-gnu"
+            echo "CROSS_COMPILE=$CROSS_COMPILE" >> $GITHUB_ENV
+            
             ZLIB_SRC_DIR="${PWD}/zlib-${{ env.tdbuild_versions_zlib }}"
             OPENSSL_SRC_DIR="${PWD}/openssl-${{ env.tdbuild_versions_openssl }}"
             echo "ZLIB_ROOT=$ZLIB_SRC_DIR" >> $GITHUB_ENV  
@@ -180,7 +227,7 @@ jobs:
             TDLIB_ARM_DIR="${PWD}/third_party/td/linux-arm64"
             TEMP_TOOLCHAIN="/tmp/toolchain-arm64.cmake"
 
-            echo "Building TDLib for Linux ARM64 (cross from x86-64, static)..."
+            echo "Building TDLib for Linux ARM64 (cross from x86_64, static)..."
             
             rm -rf "${TDLIB_ARM_DIR}"
             mkdir -p "${TDLIB_ARM_DIR}/lib"
