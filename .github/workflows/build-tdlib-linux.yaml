@@ -147,7 +147,11 @@ jobs:
               cmake -G Ninja \
                     -DCMAKE_BUILD_TYPE=Release \
                     -DOPENSSL_ROOT_DIR="${OPENSSL_ROOT_DIR}" \
+                    -DOPENSSL_USE_STATIC_LIBS=ON \
+                    -DOPENSSL_NO_SYSTEM_PATHS=ON \
                     -DZLIB_ROOT="${ZLIB_ROOT}" \
+                    -DZLIB_USE_STATIC_LIBS=ON \
+                    -DZLIB_NO_SYSTEM_PATHS=ON \
                     -DTD_ENABLE_JNI=OFF \
                     -DTD_ENABLE_DOTNET=OFF \
                     -DTD_ENABLE_PYTHON=OFF \
