@@ -146,7 +146,6 @@ jobs:
             rm -rf native_build && mkdir native_build && cd native_build
               cmake -G Ninja \
                     -DCMAKE_BUILD_TYPE=Release \
-                    -Dprepare_cross_compiling=ON \
                     -DOPENSSL_ROOT_DIR="${OPENSSL_ROOT_DIR}" \
                     -DZLIB_ROOT="${ZLIB_ROOT}" \
                     -DTD_ENABLE_JNI=OFF \
@@ -154,8 +153,7 @@ jobs:
                     -DTD_ENABLE_PYTHON=OFF \
                     -DTD_ENABLE_TESTS=OFF \
                     ..
-              #cmake --build . --target prepare_cross_compiling
-              cmake --build . --target native_tools
+              cmake --build . --target prepare_cross_compiling
             cd ..
             
             rm -rf build && mkdir build && cd build
