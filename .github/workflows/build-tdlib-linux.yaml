@@ -151,25 +151,18 @@ jobs:
             cd ..
             
             #rm -rf build && mkdir build && cd build
-              ls -l ../
+              ls -l
               #cp -r ../native_build/generate/* ../
             cd ..
-            echo "UPDATE_TDLIB=false" >> $GITHUB_ENV
               
       - name: Build Zlib cross-compile
         if: env.UPDATE_TDLIB == 'true'
         run: |
-          cd td            
+          cd td
             ZLIB_ROOT="${PWD}/third_party/zlib/linux-arm64"
-            OPENSSL_ROOT_DIR="${PWD}/third_party/openssl/linux-arm64"
-            echo "CROSS_COMPILE=$CROSS_COMPILE" >> $GITHUB_ENV
-            echo "ZLIB_ROOT=$ZLIB_ROOT" >> $GITHUB_ENV  
-            echo "OPENSSL_ROOT_DIR=$OPENSSL_ROOT_DIR" >> $GITHUB_ENV
-            
-            rm -rf "${ZLIB_ROOT}" && mkdir -p "${ZLIB_ROOT}"
-            wget https://zlib.net/zlib-${{ env.tdbuild_versions_zlib }}.tar.gz
-            tar -xf zlib-${{ env.tdbuild_versions_zlib }}.tar.gz
-            cd zlib-${{ env.tdbuild_versions_zlib }}
+            echo "ZLIB_ROOT=$ZLIB_ROOT" >> $GITHUB_ENV
+            cd $ZLIB_SRC_DIR
+              make clean
               export CC="${CROSS_COMPILE}-gcc"
               export CXX="${CROSS_COMPILE}-g++"
               export AR="${CROSS_COMPILE}-ar"
@@ -178,7 +171,7 @@ jobs:
               export NM="${CROSS_COMPILE}-nm"
               export STRIP="${CROSS_COMPILE}-strip"
               ./configure --prefix="${PWD}/install" --static
-              make -j$(nproc) || make libz.a -j$(nproc)
+              make libz.a -j$(nproc)
               make install
               cp -r install/* $ZLIB_ROOT
             cd ..
@@ -186,16 +179,16 @@ jobs:
       - name: Build OpenSSL cross-compile
         if: env.UPDATE_TDLIB == 'true'
         run: |
-          cd td            
-            rm -rf "${OPENSSL_ROOT_DIR}" && mkdir -p "${OPENSSL_ROOT_DIR}/lib" && mkdir -p "${OPENSSL_ROOT_DIR}/include"            
-            wget https://github.com/openssl/openssl/releases/download/openssl-${{ env.tdbuild_versions_openssl }}/openssl-${{ env.tdbuild_versions_openssl }}.tar.gz
-            tar -xf openssl-${{ env.tdbuild_versions_openssl }}.tar.gz
-            cd openssl-${{ env.tdbuild_versions_openssl }}              
+          cd td
+            OPENSSL_ROOT_DIR="${PWD}/third_party/openssl/linux-arm64"
+            echo "OPENSSL_ROOT_DIR=$OPENSSL_ROOT_DIR" >> $GITHUB_ENV
+            cd $OPENSSL_SRC_DIR
               echo "Configuring OpenSSL for ARM64 cross-compile..."
+              make clean
               ./Configure \
               --cross-compile-prefix="${CROSS_COMPILE}-" \
-              --prefix="${PWD}/install" \
-              --openssldir="${PWD}/install" \
+              --prefix="${OPENSSL_SRC_DIR}/install" \
+              --openssldir="${OPENSSL_SRC_DIR}/install" \
               LD="${CROSS_COMPILE}-ld" \
               linux-aarch64 \
               no-shared \
@@ -203,21 +196,18 @@ jobs:
               no-tests \
               no-legacy         
               make build_libs -j$(nproc)
-              cp libcrypto.a "${OPENSSL_ROOT_DIR}/lib/"
-              cp libssl.a "${OPENSSL_ROOT_DIR}/lib/"
+              cp libcrypto.a libssl.a "${OPENSSL_ROOT_DIR}/lib/"              
               "${CROSS_COMPILE}-strip" --strip-unneeded "${OPENSSL_ROOT_DIR}/lib/libcrypto.a"
               "${CROSS_COMPILE}-strip" --strip-unneeded "${OPENSSL_ROOT_DIR}/lib/libssl.a"
               cp -r include/openssl "${OPENSSL_ROOT_DIR}/include/"
             cd ..
-  
-            #echo "PKG_CONFIG_PATH=${BUILD_DIR}/openssl-install/lib/pkgconfig:${PKG_CONFIG_PATH}" >> $GITHUB_ENV
-            #echo "LD_LIBRARY_PATH=${BUILD_DIR}/openssl-install/lib:${LD_LIBRARY_PATH}" >> $GITHUB_ENV
 
       - name: Build TDLib ARM64 cross-compile
         if: env.UPDATE_TDLIB == 'true'
         run: |
           cd td
-            TDLIB_ARM_DIR="${PWD}/third_party/td/linux-arm64"
+          
+            TDLIB_ARM_DIR="${PWD}/third_party/td/linux-arm64-release"
             TEMP_TOOLCHAIN="/tmp/toolchain-arm64.cmake"
 
             echo "Building TDLib for Linux ARM64 (cross from x86_64, static)..."
@@ -253,33 +243,39 @@ jobs:
             echo "cat ${TEMP_TOOLCHAIN}"            
 
             echo "Configuring TDLib with CMake..."
-            cmake -G Ninja \
-                  -DCMAKE_TOOLCHAIN_FILE="${TEMP_TOOLCHAIN}" \
-                  -DOPENSSL_ROOT_DIR="${OPENSSL_ROOT_DIR}" \
-                  -DOPENSSL_INCLUDE_DIR="${OPENSSL_ROOT_DIR}/include" \
-                  -DOPENSSL_CRYPTO_LIBRARY="${OPENSSL_ROOT_DIR}/lib/libcrypto.a" \
-                  -DOPENSSL_SSL_LIBRARY="${OPENSSL_ROOT_DIR}/lib/libssl.a" \
-                  -DZLIB_ROOT="${ZLIB_ROOT}" \
-                  -DBUILD_SHARED_LIBS=OFF \
-                  -DCMAKE_BUILD_TYPE=Release \
-                  -DTD_ENABLE_JNI=OFF \
-                  -DTD_ENABLE_DOTNET=OFF \
-                  -DTD_ENABLE_PYTHON=OFF \
-                  -DTD_ENABLE_TESTS=OFF \
-                  -DTL_GENERATE_CPP=OFF \
-                  -DTDJSON_GENERATE_JSON=OFF \
-                  -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-                  ..
-
-            echo "Building TDLib..."
-            cmake --build . -j$(nproc)
-
+            rm -rf build && mkdir build && cd build
+              cmake -G Ninja \
+                    -DCMAKE_TOOLCHAIN_FILE="${TEMP_TOOLCHAIN}" \
+                    -DCMAKE_INSTALL_PREFIX:PATH=$TDLIB_ARM_DIR \
+                    -DOPENSSL_ROOT_DIR="${OPENSSL_ROOT_DIR}" \
+                    -DOPENSSL_USE_STATIC_LIBS=ON \
+                    -DZLIB_ROOT="${ZLIB_ROOT}" \
+                    -DZLIB_INCLUDE_DIR="${ZLIB_ROOT}/include" \
+                    -DZLIB_LIBRARY="${ZLIB_ROOT}/lib/libz.a" \
+                    -DCMAKE_BUILD_TYPE=Release \
+                    -DTD_ENABLE_JNI=OFF \
+                    -DTD_ENABLE_DOTNET=OFF \
+                    -DTL_GENERATE_CPP=OFF \
+                    -DTDJSON_GENERATE_JSON=OFF \
+                    -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+                    ..
+  
+              echo "Building TDLib..."
+              cmake --build . --parallel $(nproc)
+              cmake --install .
+              ls -l
+              cd ..
+            ls -l
             # Copy libs and headers to target
-            cp example/libtdjson.a "${TDLIB_ARM_DIR}/lib/"  # Static lib (BUILD_SHARED_LIBS=OFF)
-            cp -r ../tdjson "${TDLIB_ARM_DIR}/include/"  # Headers from tdjson/ dir
-            aarch64-linux-gnu-strip --strip-unneeded "${TDLIB_ARM_DIR}/lib/libtdjson.a"
+            cp example/libtdjson.a "${TDLIB_ARM_DIR}/lib/" 
+            cp -r tdjson "${TDLIB_ARM_DIR}/include/"  # Headers from tdjson/ dir
+            ${CROSS_COMPILE}-strip --strip-unneeded "${TDLIB_ARM_DIR}/lib/libtdjson.a"
             echo "TDLib cross-build complete! Lib in ${TDLIB_ARM_DIR}/lib/libtdjson.a, headers in ${TDLIB_ARM_DIR}/include/."
-
+            
+            echo "[+] arm64 Release Verification:"
+            file "${TDLIB_ARM_DIR}/lib/libtdjson.so"
+            ls -lh "${TDLIB_ARM_DIR}/lib/libtdjson.*"
+            
             echo "TDLIB_ARM_DIR=$TDLIB_ARM_DIR" >> $GITHUB_ENV
             ### END ###
           
