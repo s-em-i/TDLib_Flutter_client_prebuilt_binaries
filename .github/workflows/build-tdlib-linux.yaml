@@ -192,6 +192,7 @@ jobs:
             "set(CMAKE_STRIP ${CROSS_COMPILE}-strip)" \
             "set(CMAKE_LINKER ${CROSS_COMPILE}-ld)" \
             'set(CMAKE_CROSSCOMPILING ON)' \
+            'set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)' \
             'set(CMAKE_SKIP_RPATH ON)' \
             'set(CMAKE_EXE_LINKER_FLAGS "-fuse-ld=gold" CACHE STRING "")' \            
             "set(CMAKE_FIND_ROOT_PATH /usr/${CROSS_COMPILE} ${OPENSSL_ROOT_DIR} ${ZLIB_ROOT})" \
@@ -208,6 +209,9 @@ jobs:
             cmake -G Ninja \
                   -DCMAKE_TOOLCHAIN_FILE="${TEMP_TOOLCHAIN}" \
                   -DOPENSSL_ROOT_DIR="${OPENSSL_ROOT_DIR}" \
+                  -DOPENSSL_INCLUDE_DIR="${OPENSSL_ROOT_DIR}/include" \
+                  -DOPENSSL_CRYPTO_LIBRARY="${OPENSSL_ROOT_DIR}/lib/libcrypto.a" \
+                  -DOPENSSL_SSL_LIBRARY="${OPENSSL_ROOT_DIR}/lib/libssl.a" \
                   -DZLIB_ROOT="${ZLIB_ROOT}" \
                   -DBUILD_SHARED_LIBS=OFF \
                   -DCMAKE_BUILD_TYPE=Release \
