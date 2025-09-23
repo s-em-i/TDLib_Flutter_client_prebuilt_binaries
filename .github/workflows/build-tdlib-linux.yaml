@@ -194,14 +194,16 @@ jobs:
             'set(CMAKE_CROSSCOMPILING ON)' \
             'set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)' \
             'set(CMAKE_SKIP_RPATH ON)' \
-            'set(CMAKE_EXE_LINKER_FLAGS "-fuse-ld=gold" CACHE STRING "")' \            
-            "set(CMAKE_FIND_ROOT_PATH /usr/${CROSS_COMPILE} ${OPENSSL_ROOT_DIR} ${ZLIB_ROOT})" \
+            '#set(CMAKE_EXE_LINKER_FLAGS "-fuse-ld=gold" CACHE STRING "")' \
+            "set(CMAKE_FIND_ROOT_PATH /usr/${CROSS_COMPILE}- ${OPENSSL_ROOT_DIR} ${ZLIB_ROOT})" \
             "set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)" \
             "set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)" \
             "set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)" \
             "set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)" \
             '' > "${TEMP_TOOLCHAIN}"
 
+            cat ${TEMP_TOOLCHAIN}
+            
             rm -rf build && mkdir build && cd build
               cp -r ../native_build/generate/* ../
 
@@ -219,6 +221,8 @@ jobs:
                   -DTD_ENABLE_DOTNET=OFF \
                   -DTD_ENABLE_PYTHON=OFF \
                   -DTD_ENABLE_TESTS=OFF \
+                  -DTL_GENERATE_CPP=OFF \
+                  -DTDJSON_GENERATE_JSON=OFF \
                   -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
                   ..
 
