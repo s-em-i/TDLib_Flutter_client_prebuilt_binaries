@@ -22,15 +22,15 @@ jobs:
         run: |
           git clone https://github.com/s-em-i/TDLib_Flutter_client_prebuilt_binaries.git
           cd TDLib_Flutter_client_prebuilt_binaries
-          LatestPrebuiltReleasedVersionTag=$(git describe --tags --abbrev=0 | sed 's/v//')
-          echo $LatestPrebuiltReleasedVersionTag
+            LatestPrebuiltReleasedVersionTag=$(git describe --tags --abbrev=0 | sed 's/v//')
+            echo $LatestPrebuiltReleasedVersionTag
           cd -
           git clone https://github.com/tdlib/td.git
           cd td
-          LastReleasedVersionTag=$(git log -n 1 --grep="Update version to " --oneline)
-          commit_hash=$(echo "$LastReleasedVersionTag" | awk '{print $1}')
-          version=$(echo "$LastReleasedVersionTag" | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+\.' | sed 's/\.$//')
-          echo "$version"
+            LastReleasedVersionTag=$(git log -n 1 --grep="Update version to " --oneline)
+            commit_hash=$(echo "$LastReleasedVersionTag" | awk '{print $1}')
+            version=$(echo "$LastReleasedVersionTag" | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+\.' | sed 's/\.$//')
+            echo "$version"
           cd -
 
           echo "UPDATE_TDLIB=false" >> $GITHUB_ENV
@@ -90,16 +90,43 @@ jobs:
           file td/tdlib-x86_64-release/lib/libtdjson.so
           ls -lh td/tdlib-x86_64-release/lib/libtdjson.*
 
-      - name: Build Zlib cross-compile
+      - name: Prepare TDlib for cross compiling
         if: env.UPDATE_TDLIB == 'true'
         run: |
           cd td
-            ZLIB_ARM_DIR="${PWD}/third_party/zlib/linux-arm64"
             CROSS_COMPILE="aarch64-linux-gnu"
-            rm -rf "${ZLIB_ARM_DIR}"
-            mkdir -p "${ZLIB_ARM_DIR}"
-  
-            # Zlib cross-compile (minimal)
+            ZLIB_SRC_DIR="${PWD}/zlib-${{ env.tdbuild_versions_zlib }}"
+            OPENSSL_SRC_DIR="${PWD}/openssl-${{ env.tdbuild_versions_openssl }}"
+            echo "ZLIB_ROOT=$ZLIB_SRC_DIR" >> $GITHUB_ENV  
+            echo "OPENSSL_ROOT_DIR=$OPENSSL_SRC_DIR" >> $GITHUB_ENV
+          
+            echo "Preparing native generate files..."
+            rm -rf native_build && mkdir native_build && cd native_build            
+              cmake -G Ninja \
+                    -DCMAKE_BUILD_TYPE=Release \
+                    -DTD_ENABLE_JNI=OFF \
+                    -DTD_ENABLE_DOTNET=OFF \
+                    -DTD_ENABLE_PYTHON=OFF \
+                    -DTD_ENABLE_TESTS=OFF \
+                    ..
+              cmake --build . --target prepare_cross_compiling
+            cd .. 
+
+            rm -rf build && mkdir build && cd build
+              cp -r ../native_build/generate/* ../
+            cd ..
+
+            ZLIB_ROOT="${PWD}/third_party/zlib/linux-arm64"
+            OPENSSL_ROOT_DIR="${PWD}/third_party/openssl/linux-arm64"
+            echo "CROSS_COMPILE=$CROSS_COMPILE" >> $GITHUB_ENV
+            echo "ZLIB_ROOT=$ZLIB_ROOT" >> $GITHUB_ENV  
+            echo "OPENSSL_ROOT_DIR=$OPENSSL_ROOT_DIR" >> $GITHUB_ENV
+              
+      - name: Build Zlib cross-compile
+        if: env.UPDATE_TDLIB == 'true'
+        run: |
+          cd td            
+            rm -rf "${ZLIB_ROOT}" && mkdir -p "${ZLIB_ROOT}"
             wget https://zlib.net/zlib-${{ env.tdbuild_versions_zlib }}.tar.gz
             tar -xf zlib-${{ env.tdbuild_versions_zlib }}.tar.gz
             cd zlib-${{ env.tdbuild_versions_zlib }}
@@ -113,20 +140,14 @@ jobs:
               ./configure --prefix="${PWD}/install" --static
               make -j$(nproc) || make libz.a -j$(nproc)
               make install
-              cp -r install/* $ZLIB_ARM_DIR
+              cp -r install/* $ZLIB_ROOT
             cd ..
-            echo "CROSS_COMPILE=$CROSS_COMPILE" >> $GITHUB_ENV
-            echo "ZLIB_ARM_DIR=$ZLIB_ARM_DIR" >> $GITHUB_ENV
-            echo "ZLIB_ROOT=$ZLIB_ARM_DIR" >> $GITHUB_ENV
 
       - name: Build OpenSSL cross-compile
         if: env.UPDATE_TDLIB == 'true'
         run: |
-          cd td
-            OPENSSL_ARM_DIR="${PWD}/third_party/openssl/linux-arm64"
-            rm -rf "${OPENSSL_ARM_DIR}"
-            mkdir -p "${OPENSSL_ARM_DIR}/lib"
-            mkdir -p "${OPENSSL_ARM_DIR}/include"            
+          cd td            
+            rm -rf "${OPENSSL_ROOT_DIR}" && mkdir -p "${OPENSSL_ROOT_DIR}/lib" && mkdir -p "${OPENSSL_ROOT_DIR}/include"            
             wget https://github.com/openssl/openssl/releases/download/openssl-${{ env.tdbuild_versions_openssl }}/openssl-${{ env.tdbuild_versions_openssl }}.tar.gz
             tar -xf openssl-${{ env.tdbuild_versions_openssl }}.tar.gz
             cd openssl-${{ env.tdbuild_versions_openssl }}              
@@ -142,15 +163,13 @@ jobs:
               no-tests \
               no-legacy         
               make build_libs -j$(nproc)
-              cp libcrypto.a "${OPENSSL_ARM_DIR}/lib/"
-              cp libssl.a "${OPENSSL_ARM_DIR}/lib/"
-              "${CROSS_COMPILE}-strip" --strip-unneeded "${OPENSSL_ARM_DIR}/lib/libcrypto.a"
-              "${CROSS_COMPILE}-strip" --strip-unneeded "${OPENSSL_ARM_DIR}/lib/libssl.a"
-              cp -r include/openssl "${OPENSSL_ARM_DIR}/include/"
+              cp libcrypto.a "${OPENSSL_ROOT_DIR}/lib/"
+              cp libssl.a "${OPENSSL_ROOT_DIR}/lib/"
+              "${CROSS_COMPILE}-strip" --strip-unneeded "${OPENSSL_ROOT_DIR}/lib/libcrypto.a"
+              "${CROSS_COMPILE}-strip" --strip-unneeded "${OPENSSL_ROOT_DIR}/lib/libssl.a"
+              cp -r include/openssl "${OPENSSL_ROOT_DIR}/include/"
             cd ..
   
-            echo "OPENSSL_ARM_DIR=$OPENSSL_ARM_DIR" >> $GITHUB_ENV
-            echo "OPENSSL_ROOT_DIR=$OPENSSL_ARM_DIR" >> $GITHUB_ENV
             #echo "PKG_CONFIG_PATH=${BUILD_DIR}/openssl-install/lib/pkgconfig:${PKG_CONFIG_PATH}" >> $GITHUB_ENV
             #echo "LD_LIBRARY_PATH=${BUILD_DIR}/openssl-install/lib:${LD_LIBRARY_PATH}" >> $GITHUB_ENV
 
@@ -166,20 +185,6 @@ jobs:
             rm -rf "${TDLIB_ARM_DIR}"
             mkdir -p "${TDLIB_ARM_DIR}/lib"
             mkdir -p "${TDLIB_ARM_DIR}/include"
-
-            # Native build for generate files only (host tools for prepare_cross_compiling)
-            echo "Preparing native generate files..."
-            rm -rf native_build
-            mkdir native_build && cd native_build
-              cmake -G Ninja \
-                    -DCMAKE_BUILD_TYPE=Release \
-                    -DTD_ENABLE_JNI=OFF \
-                    -DTD_ENABLE_DOTNET=OFF \
-                    -DTD_ENABLE_PYTHON=OFF \
-                    -DTD_ENABLE_TESTS=OFF \
-                    ..
-              cmake --build . --target prepare_cross_compiling
-            cd .. 
             
             # Create temporary toolchain file
             printf '%s\n' \
@@ -206,9 +211,6 @@ jobs:
 
             echo "Printing ${TEMP_TOOLCHAIN}"
             echo "cat ${TEMP_TOOLCHAIN}"            
-            
-            rm -rf build && mkdir build && cd build
-              cp -r ../native_build/generate/* ../
 
             echo "Configuring TDLib with CMake..."
             cmake -G Ninja \
