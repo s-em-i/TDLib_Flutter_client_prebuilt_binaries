@@ -151,12 +151,12 @@ jobs:
                     -DOPENSSL_LIBRARIES="${OPENSSL_ROOT_DIR}/libssl.so" \
                     -DOPENSSL_CRYPTO_LIBRARY="${OPENSSL_ROOT_DIR}/libcrypto.a" \
                     -DOPENSSL_SSL_LIBRARY="${OPENSSL_ROOT_DIR}/libssl.a" \
-                    -DOPENSSL_USE_STATIC_LIBS=ON \
+                    #-DOPENSSL_USE_STATIC_LIBS=ON \
                     -DOPENSSL_NO_SYSTEM_PATHS=ON \
                     -DZLIB_ROOT="${ZLIB_ROOT}" \
                     -DZLIB_INCLUDE_DIRS="${ZLIB_ROOT}/include" \
                     -DZLIB_LIBRARIES="${ZLIB_ROOT}/libz.so" \
-                    -DZLIB_USE_STATIC_LIBS=ON \
+                    #-DZLIB_USE_STATIC_LIBS=ON \
                     -DZLIB_NO_SYSTEM_PATHS=ON \
                     -DTD_ENABLE_JNI=OFF \
                     -DTD_ENABLE_DOTNET=OFF \
