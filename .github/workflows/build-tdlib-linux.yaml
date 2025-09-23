@@ -76,7 +76,7 @@ jobs:
             cd $ZLIB_SRC_DIR
               echo "Configuring Zlib for x86_64 host compile..."
               ./configure --prefix="${PWD}/install" --static
-              make -j$(nproc) || make libz.a -j$(nproc)
+              make -j$(nproc)
               make install
               cp -r install/* $ZLIB_ROOT
             cd ..
@@ -97,11 +97,11 @@ jobs:
               echo "Configuring OpenSSL for x86_64 host compile..."
               ./Configure \
               linux-x86_64 \
-              --prefix="${PWD}/install" \
-              --openssldir="${PWD}/install" \
+              --prefix="${OPENSSL_SRC_DIR}/install" \
+              --openssldir="${OPENSSL_SRC_DIR}/install" \
               -static
               make build_libs -j$(nproc)
-              cp libcrypto.a libssl.a  "${OPENSSL_ROOT_DIR}/lib/"
+              cp libcrypto.a libssl.a "${OPENSSL_ROOT_DIR}/lib/"
               cp -r include/openssl "${OPENSSL_ROOT_DIR}/include/"
             cd ..
           
@@ -143,7 +143,7 @@ jobs:
                     -DOPENSSL_USE_STATIC_LIBS=ON \
                     -DZLIB_ROOT="${ZLIB_ROOT}" \
                     -DZLIB_INCLUDE_DIR="${ZLIB_ROOT}/include" \
-                    -DZLIB_LIBRARY="${ZLIB_ROOT}/libz.so" \
+                    -DZLIB_LIBRARY="${ZLIB_ROOT}/lib/libz.a" \
                     -DTD_ENABLE_JNI=OFF \
                     -DTD_ENABLE_DOTNET=OFF \
                     ..
