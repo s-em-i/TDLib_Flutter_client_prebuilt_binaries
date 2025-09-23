@@ -113,7 +113,7 @@ jobs:
             cd .. 
 
             rm -rf build && mkdir build && cd build
-              cp -r ../native_build/generate/* ../
+              #cp -r ../native_build/generate/* ../
             cd ..
 
             ZLIB_ROOT="${PWD}/third_party/zlib/linux-arm64"
