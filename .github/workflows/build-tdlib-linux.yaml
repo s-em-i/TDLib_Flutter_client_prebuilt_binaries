@@ -73,6 +73,7 @@ jobs:
             wget https://zlib.net/zlib-${{ env.tdbuild_versions_zlib }}.tar.gz
             tar -xf zlib-${{ env.tdbuild_versions_zlib }}.tar.gz
             cd $ZLIB_SRC_DIR
+              echo "Configuring Zlib for x86_64 host compile..."
               ./configure --prefix="${PWD}/install" --static
               make -j$(nproc) || make libz.a -j$(nproc)
               make install
@@ -92,7 +93,7 @@ jobs:
             wget https://github.com/openssl/openssl/releases/download/openssl-${{ env.tdbuild_versions_openssl }}/openssl-${{ env.tdbuild_versions_openssl }}.tar.gz
             tar -xf openssl-${{ env.tdbuild_versions_openssl }}.tar.gz
             cd $OPENSSL_SRC_DIR             
-              echo "Configuring OpenSSL for ARM64 cross-compile..."
+              echo "Configuring OpenSSL for x86_64 host compile..."
               ./Configure \
               linux-x86_64 \
               --prefix="${PWD}/install" \
@@ -103,7 +104,6 @@ jobs:
               cp libssl.a "${OPENSSL_ROOT_DIR}/lib/"
               cp -r include/openssl "${OPENSSL_ROOT_DIR}/include/"
             cd ..
-            echo "UPDATE_TDLIB=false" >> $GITHUB_ENV
             
       - name: Re-clone TDlib
         if: env.UPDATE_TDLIB == 'true'
@@ -135,20 +135,15 @@ jobs:
           file td/tdlib-x86_64-release/lib/libtdjson.so
           ls -lh td/tdlib-x86_64-release/lib/libtdjson.*
 
-      - name: Prepare TDlib for cross compiling
+      - name: Prepare TDlib for arm64 cross compiling
         if: env.UPDATE_TDLIB == 'true'
         run: |
           cd td
             CROSS_COMPILE="aarch64-linux-gnu"
             echo "CROSS_COMPILE=$CROSS_COMPILE" >> $GITHUB_ENV
-            
-            ZLIB_SRC_DIR="${PWD}/zlib-${{ env.tdbuild_versions_zlib }}"
-            OPENSSL_SRC_DIR="${PWD}/openssl-${{ env.tdbuild_versions_openssl }}"
-            echo "ZLIB_ROOT=$ZLIB_SRC_DIR" >> $GITHUB_ENV  
-            echo "OPENSSL_ROOT_DIR=$OPENSSL_SRC_DIR" >> $GITHUB_ENV
           
             echo "Preparing native generate files..."
-            rm -rf native_build && mkdir native_build && cd native_build            
+            rm -rf native_build && mkdir native_build && cd native_build
               cmake -G Ninja \
                     -DCMAKE_BUILD_TYPE=Release \
                     -DTD_ENABLE_JNI=OFF \
@@ -157,22 +152,24 @@ jobs:
                     -DTD_ENABLE_TESTS=OFF \
                     ..
               cmake --build . --target prepare_cross_compiling
-            cd .. 
-
-            rm -rf build && mkdir build && cd build
-              #cp -r ../native_build/generate/* ../
             cd ..
 
-            ZLIB_ROOT="${PWD}/third_party/zlib/linux-arm64"
-            OPENSSL_ROOT_DIR="${PWD}/third_party/openssl/linux-arm64"
-            echo "CROSS_COMPILE=$CROSS_COMPILE" >> $GITHUB_ENV
-            echo "ZLIB_ROOT=$ZLIB_ROOT" >> $GITHUB_ENV  
-            echo "OPENSSL_ROOT_DIR=$OPENSSL_ROOT_DIR" >> $GITHUB_ENV
+            rm -rf build && mkdir build && cd build
+              ls -l ../
+              #cp -r ../native_build/generate/* ../
+            cd ..
+            echo "UPDATE_TDLIB=false" >> $GITHUB_ENV
               
       - name: Build Zlib cross-compile
         if: env.UPDATE_TDLIB == 'true'
         run: |
           cd td            
+            ZLIB_ROOT="${PWD}/third_party/zlib/linux-arm64"
+            OPENSSL_ROOT_DIR="${PWD}/third_party/openssl/linux-arm64"
+            echo "CROSS_COMPILE=$CROSS_COMPILE" >> $GITHUB_ENV
+            echo "ZLIB_ROOT=$ZLIB_ROOT" >> $GITHUB_ENV  
+            echo "OPENSSL_ROOT_DIR=$OPENSSL_ROOT_DIR" >> $GITHUB_ENV
+            
             rm -rf "${ZLIB_ROOT}" && mkdir -p "${ZLIB_ROOT}"
             wget https://zlib.net/zlib-${{ env.tdbuild_versions_zlib }}.tar.gz
             tar -xf zlib-${{ env.tdbuild_versions_zlib }}.tar.gz
