@@ -60,7 +60,7 @@ jobs:
           sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-14 100
           sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-14 100
       
-      - name: Build Zlib for host x86_64
+      - name: Build Zlib ${{ env.tdbuild_versions_zlib }} for host x86_64
         if: env.UPDATE_TDLIB == 'true'
         run: |
           cd td
@@ -80,7 +80,7 @@ jobs:
               cp -r install/* $ZLIB_ROOT
             cd ..
 
-      - name: Build OpenSSL for host x86_64
+      - name: Build OpenSSL ${{ env.tdbuild_versions_openssl }} for host x86_64
         if: env.UPDATE_TDLIB == 'true'
         run: |
           cd td
@@ -146,17 +146,16 @@ jobs:
             rm -rf native_build && mkdir native_build && cd native_build
               cmake -G Ninja \
                     -DCMAKE_BUILD_TYPE=Release \
+                    -Dprepare_cross_compiling=ON \
                     -DOPENSSL_ROOT_DIR="${OPENSSL_ROOT_DIR}" \
-                    -DOPENSSL_INCLUDE_DIR="${OPENSSL_ROOT_DIR}/include" \
-                    -DOPENSSL_CRYPTO_LIBRARY="${OPENSSL_ROOT_DIR}/lib/libcrypto.a" \
-                    -DOPENSSL_SSL_LIBRARY="${OPENSSL_ROOT_DIR}/lib/libssl.a" \
                     -DZLIB_ROOT="${ZLIB_ROOT}" \
                     -DTD_ENABLE_JNI=OFF \
                     -DTD_ENABLE_DOTNET=OFF \
                     -DTD_ENABLE_PYTHON=OFF \
                     -DTD_ENABLE_TESTS=OFF \
                     ..
-              cmake --build . --target prepare_cross_compiling
+              #cmake --build . --target prepare_cross_compiling
+              cmake --build . --target native_tools
             cd ..
             
             rm -rf build && mkdir build && cd build
