@@ -73,7 +73,7 @@ jobs:
 
       - name: Setup Android SDK
         if: env.UPDATE_TDLIB == 'true'
-        uses: android-actions/setup-android@v3.2.2
+        uses: android-actions/setup-android@v3.2.1
         with:
           cmdline-tools-version: ${{ env.tdbuild_versions_SDK_LONG_VER }}
           accept-android-sdk-licenses: true
