@@ -127,6 +127,7 @@ jobs:
             CXXFLAGS="-stdlib=libc++ -fPIC" CC=/usr/bin/clang-14 CXX=/usr/bin/clang++-14 \
             cmake -DCMAKE_BUILD_TYPE=Release \
                   -DBUILD_SHARED_LIBS=ON \
+                  -DTDJSON_SHARED=ON \
                   -DCMAKE_INSTALL_PREFIX:PATH="${TDLIB_x86_64_DIR}" \
                   -DTD_ENABLE_LTO=OFF \
                   -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
@@ -135,7 +136,7 @@ jobs:
                   -DCMAKE_OBJDUMP=/usr/bin/llvm-objdump-14 \
                   -DCMAKE_RANLIB=/usr/bin/llvm-ranlib-14 \
                   -DOPENSSL_ROOT_DIR="${OPENSSL_ROOT_DIR}" \
-                  -DOPENSSL_USE_STATIC_LIBS=ON \
+                  -DOPENSSL_USE_STATIC_LIBS=OFF \
                   -DZLIB_ROOT="${ZLIB_ROOT}" \
                   -DZLIB_USE_STATIC_LIBS=ON \
                   ..
@@ -145,8 +146,8 @@ jobs:
           cd ..
           
           echo "[+] x86_64 Release Verification:"
-          file "${TDLIB_x86_64_DIR}/lib/libtdjson.so"
           ls -lh "${TDLIB_x86_64_DIR}/lib/libtdjson.*"
+          file "${TDLIB_x86_64_DIR}/lib/libtdjson.so"
           jar -cMf tdlib-linux-x86_64-release.zip "${TDLIB_x86_64_DIR}/"
           rm -rf generate
           echo "TG_UPLOAD_FILES=$TG_UPLOAD_FILES ${PWD}/tdlib-linux-x86_64-release.zip" >> $GITHUB_ENV
