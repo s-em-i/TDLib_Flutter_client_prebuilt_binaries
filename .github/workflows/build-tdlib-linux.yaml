@@ -100,11 +100,14 @@ jobs:
               linux-x86_64 \
               --prefix="${OPENSSL_SRC_DIR}/install" \
               --openssldir="${OPENSSL_SRC_DIR}/install" \
+              shared \
               enable-pic \
               no-asm \
-              -static
-              make build_libs -j$(nproc)
-              cp libcrypto.a libssl.a "${OPENSSL_ROOT_DIR}/lib/"
+              no-legacy
+              make -j$(nproc)
+              #make build_libs -j$(nproc)
+              
+              cp libcrypto.so libssl.so "${OPENSSL_ROOT_DIR}/lib/"
               cp -r include/openssl "${OPENSSL_ROOT_DIR}/include/"
             cd ..
           
@@ -131,7 +134,9 @@ jobs:
                   -DCMAKE_OBJDUMP=/usr/bin/llvm-objdump-14 \
                   -DCMAKE_RANLIB=/usr/bin/llvm-ranlib-14 \
                   -DOPENSSL_ROOT_DIR="${OPENSSL_ROOT_DIR}" \
+                  -DOPENSSL_USE_STATIC_LIBS=OFF \
                   -DZLIB_ROOT="${ZLIB_ROOT}" \
+                  -DZLIB_USE_STATIC_LIBS=ON \
                   ..
           
             cmake --build . --parallel $(nproc)
