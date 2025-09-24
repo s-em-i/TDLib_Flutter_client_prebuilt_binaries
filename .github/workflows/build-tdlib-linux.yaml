@@ -124,17 +124,18 @@ jobs:
           
           cd td && rm -rf build && mkdir build && cd build
 
-            CXXFLAGS="-stdlib=libc++" CC=/usr/bin/clang-14 CXX=/usr/bin/clang++-14 \
+            CXXFLAGS="-stdlib=libc++ -fPIC" CC=/usr/bin/clang-14 CXX=/usr/bin/clang++-14 \
             cmake -DCMAKE_BUILD_TYPE=Release \
-                  -DBUILD_SHARED_LIBS=OFF \
+                  -DBUILD_SHARED_LIBS=ON \
                   -DCMAKE_INSTALL_PREFIX:PATH="${TDLIB_x86_64_DIR}" \
-                  -DTD_ENABLE_LTO=ON \
+                  -DTD_ENABLE_LTO=OFF \
+                  -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
                   -DCMAKE_AR=/usr/bin/llvm-ar-14 \
                   -DCMAKE_NM=/usr/bin/llvm-nm-14 \
                   -DCMAKE_OBJDUMP=/usr/bin/llvm-objdump-14 \
                   -DCMAKE_RANLIB=/usr/bin/llvm-ranlib-14 \
                   -DOPENSSL_ROOT_DIR="${OPENSSL_ROOT_DIR}" \
-                  -DOPENSSL_USE_STATIC_LIBS=OFF \
+                  -DOPENSSL_USE_STATIC_LIBS=ON \
                   -DZLIB_ROOT="${ZLIB_ROOT}" \
                   -DZLIB_USE_STATIC_LIBS=ON \
                   ..
