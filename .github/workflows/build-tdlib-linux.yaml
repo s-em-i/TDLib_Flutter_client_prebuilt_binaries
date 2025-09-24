@@ -123,7 +123,7 @@ jobs:
 
             CXXFLAGS="-stdlib=libc++" CC=/usr/bin/clang-14 CXX=/usr/bin/clang++-14 \
             cmake -DCMAKE_BUILD_TYPE=Release \
-                  -DBUILD_SHARED_LIBS=OFF
+                  -DBUILD_SHARED_LIBS=OFF \
                   -DCMAKE_INSTALL_PREFIX:PATH="${TDLIB_x86_64_DIR}" \
                   -DTD_ENABLE_LTO=ON \
                   -DCMAKE_AR=/usr/bin/llvm-ar-14 \
