@@ -1,5 +1,6 @@
 {
     "NDK": "26.1.10909125",
+    "SDK_LONG_VER": "12266719",
     "platform": "34",
     "build-tools": "34.0.0",
     "Telethon": "1.41.2"
