@@ -58,101 +58,60 @@ jobs:
           sudo apt-get install -y make git zlib1g-dev libssl-dev gperf php-cli cmake clang-14 libc++-14-dev libc++abi-14-dev build-essential libc6-dev-arm64-cross
           sudo apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu g++-aarch64-linux-gnu binutils-aarch64-linux-gnu
           sudo apt-get install -y wget libncurses5-dev perl llvm-14 autoconf automake libtool pkg-config ninja-build libreadline-dev
-          
-          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-14 100
-          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-14 100
+
+          #sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-14 100
+          #sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-14 100
+
+          ZLIB_INST_VER=$(dpkg-query -W -f='${Version}\n' zlib1g | cut -d'-' -f1 | sed -E 's/.*:(.*)\..*/\1/')
+          OPENSSL_INST_VER=$(dpkg-query -W -f='${Version}\n' openssl | cut -d'-' -f1 | sed -E 's/.*:(.*)\..*/\1/')
+
+          echo "ZLIB_INST_VER=$ZLIB_INST_VER" >> $GITHUB_ENV
+          echo "OPENSSL_INST_VER=$OPENSSL_INST_VER" >> $GITHUB_ENV
       
-      - name: Build Zlib ${{ env.tdbuild_versions_zlib }} for host x86_64
+      - name: Getting Zlib $ZLIB_INST_VER and OpenSSL $OPENSSL_INST_VER source
         if: env.UPDATE_TDLIB == 'true'
         run: |
           cd td
-            ZLIB_ROOT="${PWD}/third_party/zlib/linux-x86_64"
-            echo "ZLIB_ROOT=$ZLIB_ROOT" >> $GITHUB_ENV
-            ZLIB_SRC_DIR="${PWD}/zlib-${{ env.tdbuild_versions_zlib }}"
+            ZLIB_SRC_DIR="${PWD}/zlib-$ZLIB_INST_VER"
+            wget https://zlib.net/fossils/zlib-$ZLIB_INST_VER.tar.gz
+            tar -xf zlib-$ZLIB_INST_VER.tar.gz
             echo "ZLIB_SRC_DIR=$ZLIB_SRC_DIR" >> $GITHUB_ENV
             
-            rm -rf "${ZLIB_ROOT}" && mkdir -p "${ZLIB_ROOT}"
-            wget https://zlib.net/zlib-${{ env.tdbuild_versions_zlib }}.tar.gz
-            tar -xf zlib-${{ env.tdbuild_versions_zlib }}.tar.gz
-            cd $ZLIB_SRC_DIR
-              echo "Configuring Zlib for x86_64 host compile..."
-              ./configure --prefix="${PWD}/install" --static
-              make -j$(nproc)
-              make install
-              cp -r install/* $ZLIB_ROOT
-            cd ..
-
-      - name: Build OpenSSL ${{ env.tdbuild_versions_openssl }} for host x86_64
-        if: env.UPDATE_TDLIB == 'true'
-        run: |
-          cd td
-            OPENSSL_ROOT_DIR="${PWD}/third_party/openssl/linux-x86_64"
-            echo "OPENSSL_ROOT_DIR=$OPENSSL_ROOT_DIR" >> $GITHUB_ENV    
-            OPENSSL_SRC_DIR="${PWD}/openssl-${{ env.tdbuild_versions_openssl }}"
+            OPENSSL_SRC_DIR="${PWD}/openssl-$OPENSSL_INST_VER"                      
+            wget https://github.com/openssl/openssl/releases/download/openssl-$OPENSSL_SRC_DIR/openssl-$OPENSSL_SRC_DIR.tar.gz
+            tar -xf openssl-$OPENSSL_SRC_DIR.tar.gz
             echo "OPENSSL_SRC_DIR=$OPENSSL_SRC_DIR" >> $GITHUB_ENV
-            
-            rm -rf "${OPENSSL_ROOT_DIR}" && mkdir -p "${OPENSSL_ROOT_DIR}/lib" && mkdir -p "${OPENSSL_ROOT_DIR}/include"            
-            wget https://github.com/openssl/openssl/releases/download/openssl-${{ env.tdbuild_versions_openssl }}/openssl-${{ env.tdbuild_versions_openssl }}.tar.gz
-            tar -xf openssl-${{ env.tdbuild_versions_openssl }}.tar.gz
-            cd $OPENSSL_SRC_DIR             
-              echo "Configuring OpenSSL for x86_64 host compile..."
-              ./Configure \
-              linux-x86_64 \
-              --prefix="${OPENSSL_SRC_DIR}/install" \
-              --openssldir="${OPENSSL_SRC_DIR}/install" \
-              shared \
-              enable-pic \
-              no-asm \
-              no-legacy
-              make -j$(nproc)
-              #make build_libs -j$(nproc)
-              
-              cp libcrypto.so libssl.so "${OPENSSL_ROOT_DIR}/lib/"
-              cp -r include/openssl "${OPENSSL_ROOT_DIR}/include/"
-            cd ..
           
       - name: Build TDLib Linux x86_64 Release
         if: env.UPDATE_TDLIB == 'true'
         run: |
-          TDLIB_x86_64_DIR="${PWD}/third_party/td/linux-x86_64-release"
-
-          echo "Building TDLib for Linux x86_64 ..."
-          
-          rm -rf "${TDLIB_x86_64_DIR}"
-          mkdir -p "${TDLIB_x86_64_DIR}/lib"
-          mkdir -p "${TDLIB_x86_64_DIR}/include"
-          
-          cd td && rm -rf build && mkdir build && cd build
-
-            CXXFLAGS="-stdlib=libc++ -fPIC" CC=/usr/bin/clang-14 CXX=/usr/bin/clang++-14 \
-            cmake -DCMAKE_BUILD_TYPE=Release \
-                  -DBUILD_SHARED_LIBS=ON \
-                  -DTDJSON=ON \
-                  -DTDJSON_SHARED=ON \
-                  -DCMAKE_INSTALL_PREFIX:PATH="${TDLIB_x86_64_DIR}" \
-                  -DTD_ENABLE_LTO=OFF \
-                  -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-                  -DCMAKE_AR=/usr/bin/llvm-ar-14 \
-                  -DCMAKE_NM=/usr/bin/llvm-nm-14 \
-                  -DCMAKE_OBJDUMP=/usr/bin/llvm-objdump-14 \
-                  -DCMAKE_RANLIB=/usr/bin/llvm-ranlib-14 \
-                  -DOPENSSL_ROOT_DIR="${OPENSSL_ROOT_DIR}" \
-                  -DOPENSSL_USE_STATIC_LIBS=OFF \
-                  -DZLIB_ROOT="${ZLIB_ROOT}" \
-                  -DZLIB_USE_STATIC_LIBS=ON \
-                  ..
-          
-            cmake --build . --parallel $(nproc)
-            cmake --install .
-          cd ..
-          
-          echo "[+] x86_64 Release Verification:"
-          ls -lh "${TDLIB_x86_64_DIR}/lib/libtdjson.*"
-          file "${TDLIB_x86_64_DIR}/lib/libtdjson.so"
-          jar -cMf tdlib-linux-x86_64-release.zip "${TDLIB_x86_64_DIR}/"
-          rm -rf generate
-          echo "TG_UPLOAD_FILES=$TG_UPLOAD_FILES ${PWD}/tdlib-linux-x86_64-release.zip" >> $GITHUB_ENV
-          echo "TDLIB_x86_64_DIR=$TDLIB_x86_64_DIR" >> $GITHUB_ENV
+          cd td
+            echo "Building TDLib for Linux x86_64 Release"
+            TDLIB_x86_64_DIR="${PWD}/third_party/td/linux-x86_64-release"            
+            
+            #rm -rf "${TDLIB_x86_64_DIR}" && mkdir -p "${TDLIB_x86_64_DIR}/lib" && mkdir -p "${TDLIB_x86_64_DIR}/include"
+            rm -rf build && mkdir build && cd build
+              CXXFLAGS="-stdlib=libc++" CC=/usr/bin/clang-14 CXX=/usr/bin/clang++-14 \
+              cmake -DCMAKE_BUILD_TYPE=Release \
+              -DCMAKE_INSTALL_PREFIX:PATH="${TDLIB_x86_64_DIR}" \
+              -DTD_ENABLE_LTO=ON \
+              -DCMAKE_AR=/usr/bin/llvm-ar-14 \
+              -DCMAKE_NM=/usr/bin/llvm-nm-14 \
+              -DCMAKE_OBJDUMP=/usr/bin/llvm-objdump-14 \
+              -DCMAKE_RANLIB=/usr/bin/llvm-ranlib-14 \
+              ..
+              cmake --build . --parallel $(nproc) --target install  
+            cd ..
+            
+            echo "[+] x86_64 Release Verification:"
+            ls -lh build || echo "build not found"
+            ls -lh "${TDLIB_x86_64_DIR}/lib/libtdjson.*" || echo "libtdjson.* not found"
+            file "${TDLIB_x86_64_DIR}/lib/libtdjson.so" || echo "libtdjson.so not found"
+            jar -cMf tdlib-linux-x86_64-release.zip "${TDLIB_x86_64_DIR}/"
+            rm -rf generate
+            echo "TG_UPLOAD_FILES=$TG_UPLOAD_FILES ${PWD}/tdlib-linux-x86_64-release.zip" >> $GITHUB_ENV
+            echo "TDLIB_x86_64_DIR=$TDLIB_x86_64_DIR" >> $GITHUB_ENV
+            echo "UPDATE_TDLIB=false" >> $GITHUB_ENV
 
       - name: Prepare TDlib for arm64 cross compiling
         if: env.UPDATE_TDLIB == 'true'
@@ -308,7 +267,7 @@ jobs:
             echo "TDLIB_ARM_DIR=$TDLIB_ARM_DIR" >> $GITHUB_ENV
 
       - name: Upload to Telegram
-        if: env.UPDATE_TDLIB == 'true'
+        if: env.UPDATE_TDLIB == 'false'
         env:
           API_ID: ${{ secrets.TELEGRAM_API_ID }}
           API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
