@@ -144,8 +144,8 @@ jobs:
           cd ..
           
           echo "[+] x86_64 Release Verification:"
-          file td/tdlib-x86_64-release/lib/libtdjson.so
-          ls -lh td/tdlib-x86_64-release/lib/libtdjson.*
+          file "${TDLIB_x86_64_DIR}/lib/libtdjson.so"
+          ls -lh "${TDLIB_x86_64_DIR}/lib/libtdjson.*"
           jar -cMf tdlib-linux-x86_64-release.zip "${TDLIB_x86_64_DIR}/"
           rm -rf generate
           echo "TG_UPLOAD_FILES=$TG_UPLOAD_FILES ${PWD}/tdlib-linux-x86_64-release.zip" >> $GITHUB_ENV
