@@ -136,7 +136,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ArtifactsDir
-          path: $ARTIFACT_DIR/*.zip
+          path: ${{ env.ARTIFACT_DIR }}/*.zip
           retention-days: 1
 
       - name: Download All Artifacts
