@@ -40,6 +40,7 @@ jobs:
               echo "commit_hash=$commit_hash" >> $GITHUB_ENV
               echo "commit_message=$commit_hash Update version to $version" >> $GITHUB_ENV
               echo "UPDATE_TDLIB=true" >> $GITHUB_ENV
+              echo "TG_UPLOAD_FILES=" >> $GITHUB_ENV
             fi
           cd -
       
@@ -106,27 +107,38 @@ jobs:
             cd ..
           
       - name: Build TDLib Linux x86_64 Release
-        if: env.UPDATE_TDLIB == 'false'
+        if: env.UPDATE_TDLIB == 'true'
         run: |
+          TDLIB_x86_64_DIR="${PWD}/third_party/td/linux-x86_64-release"
+
+          echo "Building TDLib for Linux x86_64 ..."
+          
+          rm -rf "${TDLIB_x86_64_DIR}"
+          mkdir -p "${TDLIB_x86_64_DIR}/lib"
+          mkdir -p "${TDLIB_x86_64_DIR}/include"
+          
           cd td && rm -rf build && mkdir build && cd build
 
-          CXXFLAGS="-stdlib=libc++" CC=/usr/bin/clang-14 CXX=/usr/bin/clang++-14 \
-          cmake -DCMAKE_BUILD_TYPE=Release \
-                -DCMAKE_INSTALL_PREFIX:PATH=../tdlib-x86_64-release \
-                -DTD_ENABLE_LTO=ON \
-                -DCMAKE_AR=/usr/bin/llvm-ar-14 \
-                -DCMAKE_NM=/usr/bin/llvm-nm-14 \
-                -DCMAKE_OBJDUMP=/usr/bin/llvm-objdump-14 \
-                -DCMAKE_RANLIB=/usr/bin/llvm-ranlib-14 \
-                ..
+            CXXFLAGS="-stdlib=libc++" CC=/usr/bin/clang-14 CXX=/usr/bin/clang++-14 \
+            cmake -DCMAKE_BUILD_TYPE=Release \
+                  -DCMAKE_INSTALL_PREFIX:PATH="${TDLIB_x86_64_DIR}" \
+                  -DTD_ENABLE_LTO=ON \
+                  -DCMAKE_AR=/usr/bin/llvm-ar-14 \
+                  -DCMAKE_NM=/usr/bin/llvm-nm-14 \
+                  -DCMAKE_OBJDUMP=/usr/bin/llvm-objdump-14 \
+                  -DCMAKE_RANLIB=/usr/bin/llvm-ranlib-14 \
+                  ..
           
-          cmake --build . --parallel $(nproc)
-          cmake --install .
-          cd .. && cd ..
+            cmake --build . --parallel $(nproc)
+            cmake --install .
+          cd ..
           
           echo "[+] x86_64 Release Verification:"
           file td/tdlib-x86_64-release/lib/libtdjson.so
           ls -lh td/tdlib-x86_64-release/lib/libtdjson.*
+          jar -cMf tdlib-linux-x86_64-release.zip "${TDLIB_x86_64_DIR}/"
+          echo "TG_UPLOAD_FILES=$TG_UPLOAD_FILES ${PWD}/tdlib-linux-x86_64-release.zip" >> $GITHUB_ENV
+          echo "TDLIB_x86_64_DIR=$TDLIB_x86_64_DIR" >> $GITHUB_ENV
 
       - name: Prepare TDlib for arm64 cross compiling
         if: env.UPDATE_TDLIB == 'true'
@@ -155,7 +167,7 @@ jobs:
               #cp -r ../native_build/generate/* ../
             cd ..
               
-      - name: Build Zlib ${{ env.tdbuild_versions_zlib }} for cross compile
+      - name: Build Zlib ${{ env.tdbuild_versions_zlib }} for arm64 cross compile
         if: env.UPDATE_TDLIB == 'true'
         run: |
           cd td
@@ -204,7 +216,7 @@ jobs:
               cp -r include/openssl "${OPENSSL_ROOT_DIR}/include/"
             cd ..
 
-      - name: Build TDLib ARM64 cross-compile
+      - name: Build TDLib ARM64 Release cross-compile 
         if: env.UPDATE_TDLIB == 'true'
         run: |
           cd td
@@ -269,45 +281,20 @@ jobs:
               cd ..
             ls -l
             # Copy libs and headers to target
-            cp example/libtdjson.a "${TDLIB_ARM_DIR}/lib/" 
-            cp -r tdjson "${TDLIB_ARM_DIR}/include/"  # Headers from tdjson/ dir
+            #cp example/libtdjson.a "${TDLIB_ARM_DIR}/lib/" 
+            #cp -r tdjson "${TDLIB_ARM_DIR}/include/"  # Headers from tdjson/ dir
             ${CROSS_COMPILE}-strip --strip-unneeded "${TDLIB_ARM_DIR}/lib/libtdjson.a"
-            echo "TDLib cross-build complete! Lib in ${TDLIB_ARM_DIR}/lib/libtdjson.a, headers in ${TDLIB_ARM_DIR}/include/."
+            #echo "TDLib cross-build complete! Lib in ${TDLIB_ARM_DIR}/lib/libtdjson.a, headers in ${TDLIB_ARM_DIR}/include/."
             
             echo "[+] arm64 Release Verification:"
             file "${TDLIB_ARM_DIR}/lib/libtdjson.so"
             ls -lh "${TDLIB_ARM_DIR}/lib/libtdjson.*"
-            
+            jar -cMf tdlib-linux-arm64-release.zip "${TDLIB_ARM_DIR}/"
+            echo "TG_UPLOAD_FILES=$TG_UPLOAD_FILES ${PWD}/tdlib-linux-arm64-release.zip" >> $GITHUB_ENV
             echo "TDLIB_ARM_DIR=$TDLIB_ARM_DIR" >> $GITHUB_ENV
-            ### END ###
-          
-      - name: Verify Binaries
-        if: env.UPDATE_TDLIB == 'false'
-        run: |
-          cd td/build
-          echo "=== x86_64 Release ==="
-          file ../tdlib-x86_64-release/lib/libtdjson.so
-          
-          echo "=== ARM64 Release ==="
-          file ../tdlib-arm64-release/lib/libtdjson.so
-          
-          echo "=== Sizes ==="
-          ls -lh ../tdlib-*-release/lib/libtdjson.*
-      
-      - name: Create Release Archives
-        if: env.UPDATE_TDLIB == 'false'
-        run: |
-          cd td/build
-          
-          jar -cMf ../tdlib-linux-x86_64.zip tdlib-x86_64-release/ tdlib-x86_64-debug/
-          echo "tdlib-linux-x86_64=tdlib-linux-x86_64.zip" >> $GITHUB_ENV
-          jar -cMf ../tdlib-linux-arm64.zip tdlib-arm64-release/ tdlib-arm64-debug/
-          echo "tdlib-linux-arm64=tdlib-arm64-x86_64.zip" >> $GITHUB_ENV
-          
-          ls -lh ../tdlib-*.zip
 
       - name: Upload to Telegram
-        if: env.UPDATE_TDLIB == 'false'
+        if: env.UPDATE_TDLIB == 'true'
         env:
           API_ID: ${{ secrets.TELEGRAM_API_ID }}
           API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
@@ -318,5 +305,5 @@ jobs:
         run: |
           if [ ! -z "${{ secrets.TELEGRAM_BOT_TOKEN }}" ]; then
             pip3 install Telethon==${{ env.tdbuild_versions_Telethon }}
-            python3 .github/workflows/tguploadbot.py $tdlib-linux-x86_64 $tdlib-linux-arm64
+            python3 .github/workflows/tguploadbot.py $TG_UPLOAD_FILES
           fi
