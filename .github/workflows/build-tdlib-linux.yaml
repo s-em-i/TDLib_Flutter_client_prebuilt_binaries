@@ -79,7 +79,7 @@ jobs:
 
             OPENSSL_SRC_DIR="${PWD}/openssl-$OPENSSL_INST_VER"
             wget https://github.com/openssl/openssl/releases/download/openssl-$OPENSSL_INST_VER/openssl-$OPENSSL_INST_VER.tar.gz
-            tar -xf openssl-$OPENSSL_SRC_DIR.tar.gz
+            tar -xf openssl-$OPENSSL_INST_VER.tar.gz
             echo "OPENSSL_SRC_DIR=$OPENSSL_SRC_DIR" >> $GITHUB_ENV
 
       - name: Build TDLib Linux x86_64 Release
