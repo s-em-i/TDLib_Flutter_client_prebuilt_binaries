@@ -155,12 +155,13 @@ jobs:
               #cp -r ../native_build/generate/* ../
             cd ..
               
-      - name: Build Zlib cross-compile
+      - name: Build Zlib ${{ env.tdbuild_versions_zlib }} for cross compile
         if: env.UPDATE_TDLIB == 'true'
         run: |
           cd td
             ZLIB_ROOT="${PWD}/third_party/zlib/linux-arm64"
             echo "ZLIB_ROOT=$ZLIB_ROOT" >> $GITHUB_ENV
+            rm -rf "${ZLIB_ROOT}" && mkdir -p "${ZLIB_ROOT}"
             cd $ZLIB_SRC_DIR
               make clean
               export CC="${CROSS_COMPILE}-gcc"
@@ -176,12 +177,13 @@ jobs:
               cp -r install/* $ZLIB_ROOT
             cd ..
 
-      - name: Build OpenSSL cross-compile
+      - name: Build OpenSSL ${{ env.tdbuild_versions_openssl }} for arm64 cross compile
         if: env.UPDATE_TDLIB == 'true'
         run: |
           cd td
             OPENSSL_ROOT_DIR="${PWD}/third_party/openssl/linux-arm64"
             echo "OPENSSL_ROOT_DIR=$OPENSSL_ROOT_DIR" >> $GITHUB_ENV
+            rm -rf "${OPENSSL_ROOT_DIR}" && mkdir -p "${OPENSSL_ROOT_DIR}/lib" && mkdir -p "${OPENSSL_ROOT_DIR}/include" 
             cd $OPENSSL_SRC_DIR
               echo "Configuring OpenSSL for ARM64 cross-compile..."
               make clean
