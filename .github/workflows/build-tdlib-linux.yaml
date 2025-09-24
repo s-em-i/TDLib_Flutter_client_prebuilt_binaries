@@ -30,10 +30,10 @@ jobs:
             LastReleasedVersionTag=$(git log -n 1 --grep="Update version to " --oneline)
             commit_hash=$(echo "$LastReleasedVersionTag" | awk '{print $1}')
             version=$(echo "$LastReleasedVersionTag" | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+\.' | sed 's/\.$//')
-            echo "$version"
-
+            echo "$version"          
+  
             echo "UPDATE_TDLIB=false" >> $GITHUB_ENV
-
+  
             if [[ $(echo -e "$version\n$LatestPrebuiltReleasedVersionTag" | sort -V | head -n1) == "$LatestPrebuiltReleasedVersionTag" ]]; then
               git checkout $commit_hash
               echo "version=$version" >> $GITHUB_ENV
@@ -43,14 +43,14 @@ jobs:
               echo "TG_UPLOAD_FILES=" >> $GITHUB_ENV
             fi
           cd -
-
+      
       - name: JSON to variables
         if: env.UPDATE_TDLIB == 'true'
         uses: rgarcia-phi/json-to-variables@v1.1.0
         with:
           filename: '.github/workflows/td-version.json'
           prefix: tdbuild_versions
-
+          
       - name: install build essentials
         if: env.UPDATE_TDLIB == 'true'
         run: |
@@ -67,7 +67,7 @@ jobs:
 
           echo "ZLIB_INST_VER=$ZLIB_INST_VER" >> $GITHUB_ENV
           echo "OPENSSL_INST_VER=$OPENSSL_INST_VER" >> $GITHUB_ENV
-
+      
       - name: Getting Zlib ${{ ZLIB_INST_VER }} and OpenSSL ${{ OPENSSL_INST_VER }} source
         if: env.UPDATE_TDLIB == 'true'
         run: |
@@ -76,19 +76,19 @@ jobs:
             wget https://zlib.net/fossils/zlib-$ZLIB_INST_VER.tar.gz
             tar -xf zlib-$ZLIB_INST_VER.tar.gz
             echo "ZLIB_SRC_DIR=$ZLIB_SRC_DIR" >> $GITHUB_ENV
-
+            
             OPENSSL_SRC_DIR="${PWD}/openssl-$OPENSSL_INST_VER"
             wget https://github.com/openssl/openssl/releases/download/openssl-$OPENSSL_INST_VER/openssl-$OPENSSL_INST_VER.tar.gz
             tar -xf openssl-$OPENSSL_SRC_DIR.tar.gz
             echo "OPENSSL_SRC_DIR=$OPENSSL_SRC_DIR" >> $GITHUB_ENV
-
+          
       - name: Build TDLib Linux x86_64 Release
         if: env.UPDATE_TDLIB == 'true'
         run: |
           cd td
             echo "Building TDLib for Linux x86_64 Release"
-            TDLIB_x86_64_DIR="${PWD}/third_party/td/linux-x86_64-release"
-
+            TDLIB_x86_64_DIR="${PWD}/third_party/td/linux-x86_64-release"            
+            
             #rm -rf "${TDLIB_x86_64_DIR}" && mkdir -p "${TDLIB_x86_64_DIR}/lib" && mkdir -p "${TDLIB_x86_64_DIR}/include"
             rm -rf build && mkdir build && cd build
               CXXFLAGS="-stdlib=libc++" CC=/usr/bin/clang-14 CXX=/usr/bin/clang++-14 \
@@ -100,9 +100,9 @@ jobs:
               -DCMAKE_OBJDUMP=/usr/bin/llvm-objdump-14 \
               -DCMAKE_RANLIB=/usr/bin/llvm-ranlib-14 \
               ..
-              cmake --build . --parallel $(nproc) --target install
+              cmake --build . --parallel $(nproc) --target install  
             cd ..
-
+            
             echo "[+] x86_64 Release Verification:"
             ls -lh build || echo "build not found"
             ls -lh "${TDLIB_x86_64_DIR}/lib/libtdjson.*" || echo "libtdjson.* not found"
@@ -119,7 +119,7 @@ jobs:
           cd td
             CROSS_COMPILE="aarch64-linux-gnu"
             echo "CROSS_COMPILE=$CROSS_COMPILE" >> $GITHUB_ENV
-
+          
             echo "Preparing native generate files..."
             rm -rf native_build && mkdir native_build && cd native_build
               cmake -G Ninja \
@@ -134,12 +134,12 @@ jobs:
                     ..
               cmake --build . --target prepare_cross_compiling
             cd ..
-
+            
             #rm -rf build && mkdir build && cd build
               ls -l
               #cp -r ../native_build/generate/* ../
             cd ..
-
+              
       - name: Build Zlib ${{ env.tdbuild_versions_zlib }} for arm64 cross compile
         if: env.UPDATE_TDLIB == 'true'
         run: |
@@ -168,7 +168,7 @@ jobs:
           cd td
             OPENSSL_ROOT_DIR="${PWD}/third_party/openssl/linux-arm64"
             echo "OPENSSL_ROOT_DIR=$OPENSSL_ROOT_DIR" >> $GITHUB_ENV
-            rm -rf "${OPENSSL_ROOT_DIR}" && mkdir -p "${OPENSSL_ROOT_DIR}/lib" && mkdir -p "${OPENSSL_ROOT_DIR}/include"
+            rm -rf "${OPENSSL_ROOT_DIR}" && mkdir -p "${OPENSSL_ROOT_DIR}/lib" && mkdir -p "${OPENSSL_ROOT_DIR}/include" 
             cd $OPENSSL_SRC_DIR
               echo "Configuring OpenSSL for ARM64 cross-compile..."
               make clean
@@ -181,28 +181,28 @@ jobs:
               no-shared \
               no-asm \
               no-tests \
-              no-legacy
+              no-legacy         
               make build_libs -j$(nproc)
-              cp libcrypto.a libssl.a "${OPENSSL_ROOT_DIR}/lib/"
+              cp libcrypto.a libssl.a "${OPENSSL_ROOT_DIR}/lib/"              
               "${CROSS_COMPILE}-strip" --strip-unneeded "${OPENSSL_ROOT_DIR}/lib/libcrypto.a"
               "${CROSS_COMPILE}-strip" --strip-unneeded "${OPENSSL_ROOT_DIR}/lib/libssl.a"
               cp -r include/openssl "${OPENSSL_ROOT_DIR}/include/"
             cd ..
 
-      - name: Build TDLib ARM64 Release cross-compile
+      - name: Build TDLib ARM64 Release cross-compile 
         if: env.UPDATE_TDLIB == 'true'
         run: |
           cd td
-
+          
             TDLIB_ARM_DIR="${PWD}/third_party/td/linux-arm64-release"
             TEMP_TOOLCHAIN="/tmp/toolchain-arm64.cmake"
 
             echo "Building TDLib for Linux ARM64 (cross from x86_64, static)..."
-
+            
             rm -rf "${TDLIB_ARM_DIR}"
             mkdir -p "${TDLIB_ARM_DIR}/lib"
             mkdir -p "${TDLIB_ARM_DIR}/include"
-
+            
             # Create temporary toolchain file
             printf '%s\n' \
             'set(CMAKE_SYSTEM_NAME Linux)' \
@@ -227,7 +227,7 @@ jobs:
             '' > "${TEMP_TOOLCHAIN}"
 
             echo "Printing ${TEMP_TOOLCHAIN}"
-            echo "cat ${TEMP_TOOLCHAIN}"
+            echo "cat ${TEMP_TOOLCHAIN}"            
 
             echo "Configuring TDLib with CMake..."
             rm -rf build && mkdir build && cd build
@@ -246,7 +246,7 @@ jobs:
                     -DTDJSON_GENERATE_JSON=OFF \
                     -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
                     ..
-
+  
               echo "Building TDLib..."
               cmake --build . --parallel $(nproc)
               cmake --install .
@@ -254,11 +254,11 @@ jobs:
               cd ..
             ls -l
             # Copy libs and headers to target
-            #cp example/libtdjson.a "${TDLIB_ARM_DIR}/lib/"
+            #cp example/libtdjson.a "${TDLIB_ARM_DIR}/lib/" 
             #cp -r tdjson "${TDLIB_ARM_DIR}/include/"  # Headers from tdjson/ dir
             ${CROSS_COMPILE}-strip --strip-unneeded "${TDLIB_ARM_DIR}/lib/libtdjson.a"
             #echo "TDLib cross-build complete! Lib in ${TDLIB_ARM_DIR}/lib/libtdjson.a, headers in ${TDLIB_ARM_DIR}/include/."
-
+            
             echo "[+] arm64 Release Verification:"
             file "${TDLIB_ARM_DIR}/lib/libtdjson.so"
             ls -lh "${TDLIB_ARM_DIR}/lib/libtdjson.*"
