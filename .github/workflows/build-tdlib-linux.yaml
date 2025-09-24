@@ -40,7 +40,6 @@ jobs:
               echo "commit_hash=$commit_hash" >> $GITHUB_ENV
               echo "commit_message=$commit_hash Update version to $version" >> $GITHUB_ENV
               echo "UPDATE_TDLIB=true" >> $GITHUB_ENV
-              echo "TG_UPLOAD_FILES=" >> $GITHUB_ENV
             fi
           cd -
 
@@ -59,16 +58,18 @@ jobs:
           sudo apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu g++-aarch64-linux-gnu binutils-aarch64-linux-gnu
           sudo apt-get install -y wget libncurses5-dev perl llvm-14 autoconf automake libtool pkg-config ninja-build libreadline-dev
 
-          #sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-14 100
-          #sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-14 100
-
           ZLIB_INST_VER=$(dpkg-query -W -f='${Version}\n' zlib1g | cut -d'-' -f1 | sed -E 's/.*:(.*)\..*/\1/')
           OPENSSL_INST_VER=$(dpkg-query -W -f='${Version}\n' openssl | cut -d'-' -f1 | sed -E 's/.*:(.*)\..*/\1/')
+          HOST_ARCH=$(uname -m)
+          mkdir artifact
+          ARTIFACT_DIR="${PWD}/artifact"
 
           echo "ZLIB_INST_VER=$ZLIB_INST_VER" >> $GITHUB_ENV
           echo "OPENSSL_INST_VER=$OPENSSL_INST_VER" >> $GITHUB_ENV
+          echo "HOST_ARCH=$HOST_ARCH" >> $GITHUB_ENV
+          echo "ARTIFACT_DIR=$ARTIFACT_DIR" >> $GITHUB_ENV
 
-      - name: Getting Zlib ${ZLIB_INST_VER} and OpenSSL ${OPENSSL_INST_VER} source
+      - name: Getting Zlib and OpenSSL source
         if: env.UPDATE_TDLIB == 'true'
         run: |
           cd td
@@ -82,18 +83,19 @@ jobs:
             tar -xf openssl-$OPENSSL_INST_VER.tar.gz
             echo "OPENSSL_SRC_DIR=$OPENSSL_SRC_DIR" >> $GITHUB_ENV
 
-      - name: Build TDLib Linux x86_64 Release
+      - name: Build TDLib Linux Release
         if: env.UPDATE_TDLIB == 'true'
         run: |
           cd td
-            echo "Building TDLib for Linux x86_64 Release"
-            TDLIB_x86_64_DIR="${PWD}/third_party/td/linux-x86_64-release"
+            BUILD_TYPE="Release"
+            echo "Building TDLib for Linux $HOST_ARCH $BUILD_TYPE"
+            TDLIB_DIR="${PWD}/third_party/td/linux-$HOST_ARCH-$BUILD_TYPE"
+            TDLIB_ZIP=tdlib-linux-$HOST_ARCH-$BUILD_TYPE.zip
 
-            #rm -rf "${TDLIB_x86_64_DIR}" && mkdir -p "${TDLIB_x86_64_DIR}/lib" && mkdir -p "${TDLIB_x86_64_DIR}/include"
             rm -rf build && mkdir build && cd build
               CXXFLAGS="-stdlib=libc++" CC=/usr/bin/clang-14 CXX=/usr/bin/clang++-14 \
-              cmake -DCMAKE_BUILD_TYPE=Release \
-              -DCMAKE_INSTALL_PREFIX:PATH="${TDLIB_x86_64_DIR}" \
+              cmake -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+              -DCMAKE_INSTALL_PREFIX:PATH="${TDLIB_DIR}" \
               -DTD_ENABLE_LTO=ON \
               -DCMAKE_AR=/usr/bin/llvm-ar-14 \
               -DCMAKE_NM=/usr/bin/llvm-nm-14 \
@@ -103,168 +105,45 @@ jobs:
               cmake --build . --parallel $(nproc) --target install
             cd ..
 
-            echo "[+] x86_64 Release Verification:"
-            ls -lh build || echo "build not found"
-            ls -lh "${TDLIB_x86_64_DIR}/lib/libtdjson.*" || echo "libtdjson.* not found"
-            file "${TDLIB_x86_64_DIR}/lib/libtdjson.so" || echo "libtdjson.so not found"
-            jar -cMf tdlib-linux-x86_64-release.zip "${TDLIB_x86_64_DIR}/"
-            rm -rf generate
-            echo "TG_UPLOAD_FILES=$TG_UPLOAD_FILES ${PWD}/tdlib-linux-x86_64-release.zip" >> $GITHUB_ENV
-            echo "TDLIB_x86_64_DIR=$TDLIB_x86_64_DIR" >> $GITHUB_ENV
-            echo "UPDATE_TDLIB=false" >> $GITHUB_ENV
+            cd $TDLIB_DIR && jar -cMf $ARTIFACT_DIR/$TDLIB_ZIP *
 
-      - name: Prepare TDlib for arm64 cross compiling
+      - name: Build TDLib Linux Debug
         if: env.UPDATE_TDLIB == 'true'
         run: |
           cd td
-            CROSS_COMPILE="aarch64-linux-gnu"
-            echo "CROSS_COMPILE=$CROSS_COMPILE" >> $GITHUB_ENV
+            BUILD_TYPE="Debug"
+            echo "Building TDLib for Linux $HOST_ARCH $BUILD_TYPE"
+            TDLIB_DIR="${PWD}/third_party/td/linux-$HOST_ARCH-$BUILD_TYPE"
+            TDLIB_ZIP=tdlib-linux-$HOST_ARCH-$BUILD_TYPE.zip
 
-            echo "Preparing native generate files..."
-            rm -rf native_build && mkdir native_build && cd native_build
-              cmake -G Ninja \
-                    -DCMAKE_BUILD_TYPE=Release \
-                    -DOPENSSL_ROOT_DIR="${OPENSSL_ROOT_DIR}" \
-                    -DOPENSSL_USE_STATIC_LIBS=ON \
-                    -DZLIB_ROOT="${ZLIB_ROOT}" \
-                    -DZLIB_INCLUDE_DIR="${ZLIB_ROOT}/include" \
-                    -DZLIB_LIBRARY="${ZLIB_ROOT}/lib/libz.a" \
-                    -DTD_ENABLE_JNI=OFF \
-                    -DTD_ENABLE_DOTNET=OFF \
-                    ..
-              cmake --build . --target prepare_cross_compiling
-            cd ..
-
-            #rm -rf build && mkdir build && cd build
-              ls -l
-              #cp -r ../native_build/generate/* ../
-            cd ..
-
-      - name: Build Zlib ${{ env.tdbuild_versions_zlib }} for arm64 cross compile
-        if: env.UPDATE_TDLIB == 'true'
-        run: |
-          cd td
-            ZLIB_ROOT="${PWD}/third_party/zlib/linux-arm64"
-            echo "ZLIB_ROOT=$ZLIB_ROOT" >> $GITHUB_ENV
-            rm -rf "${ZLIB_ROOT}" && mkdir -p "${ZLIB_ROOT}"
-            cd $ZLIB_SRC_DIR
-              make clean
-              export CC="${CROSS_COMPILE}-gcc"
-              export CXX="${CROSS_COMPILE}-g++"
-              export AR="${CROSS_COMPILE}-ar"
-              export RANLIB="${CROSS_COMPILE}-ranlib"
-              export LD="${CROSS_COMPILE}-ld"
-              export NM="${CROSS_COMPILE}-nm"
-              export STRIP="${CROSS_COMPILE}-strip"
-              ./configure --prefix="${PWD}/install" --static
-              make libz.a -j$(nproc)
-              make install
-              cp -r install/* $ZLIB_ROOT
-            cd ..
-
-      - name: Build OpenSSL ${{ env.tdbuild_versions_openssl }} for arm64 cross compile
-        if: env.UPDATE_TDLIB == 'true'
-        run: |
-          cd td
-            OPENSSL_ROOT_DIR="${PWD}/third_party/openssl/linux-arm64"
-            echo "OPENSSL_ROOT_DIR=$OPENSSL_ROOT_DIR" >> $GITHUB_ENV
-            rm -rf "${OPENSSL_ROOT_DIR}" && mkdir -p "${OPENSSL_ROOT_DIR}/lib" && mkdir -p "${OPENSSL_ROOT_DIR}/include"
-            cd $OPENSSL_SRC_DIR
-              echo "Configuring OpenSSL for ARM64 cross-compile..."
-              make clean
-              ./Configure \
-              --cross-compile-prefix="${CROSS_COMPILE}-" \
-              --prefix="${OPENSSL_SRC_DIR}/install" \
-              --openssldir="${OPENSSL_SRC_DIR}/install" \
-              LD="${CROSS_COMPILE}-ld" \
-              linux-aarch64 \
-              no-shared \
-              no-asm \
-              no-tests \
-              no-legacy
-              make build_libs -j$(nproc)
-              cp libcrypto.a libssl.a "${OPENSSL_ROOT_DIR}/lib/"
-              "${CROSS_COMPILE}-strip" --strip-unneeded "${OPENSSL_ROOT_DIR}/lib/libcrypto.a"
-              "${CROSS_COMPILE}-strip" --strip-unneeded "${OPENSSL_ROOT_DIR}/lib/libssl.a"
-              cp -r include/openssl "${OPENSSL_ROOT_DIR}/include/"
-            cd ..
-
-      - name: Build TDLib ARM64 Release cross-compile
-        if: env.UPDATE_TDLIB == 'true'
-        run: |
-          cd td
-
-            TDLIB_ARM_DIR="${PWD}/third_party/td/linux-arm64-release"
-            TEMP_TOOLCHAIN="/tmp/toolchain-arm64.cmake"
-
-            echo "Building TDLib for Linux ARM64 (cross from x86_64, static)..."
-
-            rm -rf "${TDLIB_ARM_DIR}"
-            mkdir -p "${TDLIB_ARM_DIR}/lib"
-            mkdir -p "${TDLIB_ARM_DIR}/include"
-
-            # Create temporary toolchain file
-            printf '%s\n' \
-            'set(CMAKE_SYSTEM_NAME Linux)' \
-            'set(CMAKE_SYSTEM_PROCESSOR aarch64)' \
-            'set(CMAKE_HOST_SYSTEM_NAME Linux)' \
-            'set(CMAKE_HOST_SYSTEM_PROCESSOR x86_64)' \
-            "set(CMAKE_C_COMPILER ${CROSS_COMPILE}-gcc)" \
-            "set(CMAKE_CXX_COMPILER ${CROSS_COMPILE}-g++)" \
-            "set(CMAKE_AR ${CROSS_COMPILE}-ar)" \
-            "set(CMAKE_RANLIB ${CROSS_COMPILE}-ranlib)" \
-            "set(CMAKE_STRIP ${CROSS_COMPILE}-strip)" \
-            "set(CMAKE_LINKER ${CROSS_COMPILE}-ld)" \
-            'set(CMAKE_CROSSCOMPILING ON)' \
-            'set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)' \
-            'set(CMAKE_SKIP_RPATH ON)' \
-            '#set(CMAKE_EXE_LINKER_FLAGS "-fuse-ld=gold" CACHE STRING "")' \
-            "set(CMAKE_FIND_ROOT_PATH /usr/${CROSS_COMPILE} ${OPENSSL_ROOT_DIR} ${ZLIB_ROOT})" \
-            "set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)" \
-            "set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)" \
-            "set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)" \
-            "set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)" \
-            '' > "${TEMP_TOOLCHAIN}"
-
-            echo "Printing ${TEMP_TOOLCHAIN}"
-            echo "cat ${TEMP_TOOLCHAIN}"
-
-            echo "Configuring TDLib with CMake..."
             rm -rf build && mkdir build && cd build
-              cmake -G Ninja \
-                    -DCMAKE_TOOLCHAIN_FILE="${TEMP_TOOLCHAIN}" \
-                    -DCMAKE_INSTALL_PREFIX:PATH=$TDLIB_ARM_DIR \
-                    -DOPENSSL_ROOT_DIR="${OPENSSL_ROOT_DIR}" \
-                    -DOPENSSL_USE_STATIC_LIBS=ON \
-                    -DZLIB_ROOT="${ZLIB_ROOT}" \
-                    -DZLIB_INCLUDE_DIR="${ZLIB_ROOT}/include" \
-                    -DZLIB_LIBRARY="${ZLIB_ROOT}/lib/libz.a" \
-                    -DCMAKE_BUILD_TYPE=Release \
-                    -DTD_ENABLE_JNI=OFF \
-                    -DTD_ENABLE_DOTNET=OFF \
-                    -DTL_GENERATE_CPP=OFF \
-                    -DTDJSON_GENERATE_JSON=OFF \
-                    -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-                    ..
+              CXXFLAGS="-stdlib=libc++" CC=/usr/bin/clang-14 CXX=/usr/bin/clang++-14 \
+              cmake -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+              -DCMAKE_INSTALL_PREFIX:PATH="${TDLIB_DIR}" \
+              -DTD_ENABLE_LTO=ON \
+              -DCMAKE_AR=/usr/bin/llvm-ar-14 \
+              -DCMAKE_NM=/usr/bin/llvm-nm-14 \
+              -DCMAKE_OBJDUMP=/usr/bin/llvm-objdump-14 \
+              -DCMAKE_RANLIB=/usr/bin/llvm-ranlib-14 \
+              ..
+              cmake --build . --parallel $(nproc) --target install
+            cd ..
 
-              echo "Building TDLib..."
-              cmake --build . --parallel $(nproc)
-              cmake --install .
-              ls -l
-              cd ..
-            ls -l
-            # Copy libs and headers to target
-            #cp example/libtdjson.a "${TDLIB_ARM_DIR}/lib/"
-            #cp -r tdjson "${TDLIB_ARM_DIR}/include/"  # Headers from tdjson/ dir
-            ${CROSS_COMPILE}-strip --strip-unneeded "${TDLIB_ARM_DIR}/lib/libtdjson.a"
-            #echo "TDLib cross-build complete! Lib in ${TDLIB_ARM_DIR}/lib/libtdjson.a, headers in ${TDLIB_ARM_DIR}/include/."
+            cd $TDLIB_DIR && jar -cMf $ARTIFACT_DIR/$TDLIB_ZIP *
 
-            echo "[+] arm64 Release Verification:"
-            file "${TDLIB_ARM_DIR}/lib/libtdjson.so"
-            ls -lh "${TDLIB_ARM_DIR}/lib/libtdjson.*"
-            jar -cMf tdlib-linux-arm64-release.zip "${TDLIB_ARM_DIR}/"
-            echo "TG_UPLOAD_FILES=$TG_UPLOAD_FILES ${PWD}/tdlib-linux-arm64-release.zip" >> $GITHUB_ENV
-            echo "TDLIB_ARM_DIR=$TDLIB_ARM_DIR" >> $GITHUB_ENV
+      - name: Upload To Artifacts Dir
+        if: env.UPDATE_TDLIB == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ArtifactsDir
+          path: $ARTIFACT_DIR/*.zip
+          retention-days: 1
+
+      - name: Download All Artifacts
+        if: env.UPDATE_TDLIB == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
 
       - name: Upload to Telegram
         if: env.UPDATE_TDLIB == 'false'
@@ -278,5 +157,6 @@ jobs:
         run: |
           if [ ! -z "${{ secrets.TELEGRAM_BOT_TOKEN }}" ]; then
             pip3 install Telethon==${{ env.tdbuild_versions_Telethon }}
+            cd artifacts && TG_UPLOAD_FILES=$(ls *.zip)
             python3 .github/workflows/tguploadbot.py $TG_UPLOAD_FILES
           fi
