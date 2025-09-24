@@ -1,6 +1,6 @@
 # This is a basic workflow to help you get started with Actions
 
-name: tdlib-build
+name: tdlib-build-android
 
 # Controls when the workflow will run
 on:
@@ -9,9 +9,9 @@ on:
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  build-android:
+  build-tdlib-android:
     # The type of runner that the job will run on
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
@@ -22,43 +22,60 @@ jobs:
         run: |
           git clone https://github.com/s-em-i/TDLib_Flutter_client_prebuilt_binaries.git
           cd TDLib_Flutter_client_prebuilt_binaries
-          LatestPrebuiltReleasedVersionTag=$(git describe --tags --abbrev=0 | sed 's/v//')
-          echo $LatestPrebuiltReleasedVersionTag
+            LatestPrebuiltReleasedVersionTag=$(git describe --tags --abbrev=0 | sed 's/v//')
+            echo $LatestPrebuiltReleasedVersionTag
           cd -
           git clone https://github.com/tdlib/td.git
           cd td
-          LastReleasedVersionTag=$(git log -n 1 --grep="Update version to " --oneline)
-          commit_hash=$(echo "$LastReleasedVersionTag" | awk '{print $1}')
-          version=$(echo "$LastReleasedVersionTag" | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+\.' | sed 's/\.$//')
-          echo "$version"
+            LastReleasedVersionTag=$(git log -n 1 --grep="Update version to " --oneline)
+            commit_hash=$(echo "$LastReleasedVersionTag" | awk '{print $1}')
+            version=$(echo "$LastReleasedVersionTag" | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+\.' | sed 's/\.$//')
+            echo "$version"
 
-          echo "UPDATE_TDLIB=false" >> $GITHUB_ENV
+            echo "UPDATE_TDLIB=false" >> $GITHUB_ENV
 
-          if [[ $(echo -e "$version\n$LatestPrebuiltReleasedVersionTag" | sort -V | head -n1) == "$LatestPrebuiltReleasedVersionTag" ]]; then
-            git checkout $commit_hash
-            echo "version=$version" >> $GITHUB_ENV
-            echo "commit_hash=$commit_hash" >> $GITHUB_ENV
-            echo "commit_message=$commit_hash Update version to $version" >> $GITHUB_ENV
-            echo "UPDATE_TDLIB=true" >> $GITHUB_ENV
-          fi
-      
+            if [[ $(echo -e "$version\n$LatestPrebuiltReleasedVersionTag" | sort -V | head -n1) == "$LatestPrebuiltReleasedVersionTag" ]]; then
+              git checkout $commit_hash
+              echo "version=$version" >> $GITHUB_ENV
+              echo "commit_hash=$commit_hash" >> $GITHUB_ENV
+              echo "commit_message=$commit_hash Update version to $version" >> $GITHUB_ENV
+              echo "UPDATE_TDLIB=true" >> $GITHUB_ENV
+            fi
+          cd -
+
       - name: JSON to variables
         if: env.UPDATE_TDLIB == 'true'
         uses: rgarcia-phi/json-to-variables@v1.1.0
         with:
           filename: '.github/workflows/td-version.json'
           prefix: tdbuild_versions
-          
+
       - name: install build essentials
         if: env.UPDATE_TDLIB == 'true'
         run: |
-          sudo apt-get install -y make zlib1g-dev libssl-dev gperf cmake clang libc++-dev libc++abi-dev ninja-build
+          sudo apt-get update && sudo apt-get upgrade -y
+          sudo apt-get install -y make git zlib1g-dev libssl-dev gperf php-cli cmake clang-14 libc++-14-dev libc++abi-14-dev build-essential libc6-dev-arm64-cross
+          sudo apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu g++-aarch64-linux-gnu binutils-aarch64-linux-gnu
+          sudo apt-get install -y wget libncurses5-dev perl llvm-14 autoconf automake libtool pkg-config ninja-build libreadline-dev
+
+          ZLIB_INST_VER=$(dpkg-query -W -f='${Version}\n' zlib1g | cut -d'-' -f1 | sed -E 's/.*:(.*)\..*/\1/')
+          OPENSSL_INST_VER=$(dpkg-query -W -f='${Version}\n' openssl | cut -d'-' -f1 | sed -E 's/.*:(.*)\..*/\1/')
+          CMAKE_INST_VER=$(dpkg-query -W -f='${Version}\n' cmake | cut -d'-' -f1 | sed -E 's/.*:(.*)\..*/\1/')
+          HOST_ARCH=$(uname -m)
+          mkdir artifact
+          ARTIFACT_DIR="${PWD}/artifact"
+
+          echo "ZLIB_INST_VER=$ZLIB_INST_VER" >> $GITHUB_ENV
+          echo "OPENSSL_INST_VER=$OPENSSL_INST_VER" >> $GITHUB_ENV
+          echo "CMAKE_INST_VER=$CMAKE_INST_VER" >> $GITHUB_ENV
+          echo "HOST_ARCH=$HOST_ARCH" >> $GITHUB_ENV
+          echo "ARTIFACT_DIR=$ARTIFACT_DIR" >> $GITHUB_ENV
 
       - name: Setup Android SDK
         if: env.UPDATE_TDLIB == 'true'
         uses: android-actions/setup-android@v3
         with:
-          cmdline-tools-version: 12266719
+          cmdline-tools-version: ${{ env.tdbuild_versions_SDK_LONG_VER }}
           accept-android-sdk-licenses: true
           log-accepted-android-sdk-licenses: false
 
@@ -69,8 +86,8 @@ jobs:
           sdkmanager "ndk;${{ env.tdbuild_versions_NDK }}"
           echo "ANDROID_NDK_VERSION=${{ env.tdbuild_versions_NDK }}" >> $GITHUB_ENV
           
-          echo "=== Installing CMake ${{ env.tdbuild_versions_cmake }} ==="
-          sdkmanager "cmake;${{ env.tdbuild_versions_cmake }}"
+          echo "=== Installing CMake $CMAKE_INST_VER ==="
+          sdkmanager "cmake;$CMAKE_INST_VER"
           
           echo "=== Installing Android ${{ env.tdbuild_versions_platform }} Platform ==="
           sdkmanager "platforms;android-${{ env.tdbuild_versions_platform }}"
@@ -84,22 +101,39 @@ jobs:
           ANDROID_SDK_ROOT=$ANDROID_HOME
           echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> $GITHUB_ENV       
           OPENSSL_INSTALL_DIR="third-party/openssl"
-          OPENSSL_VERSION=${{ env.tdbuild_versions_openssl }}
           echo "OPENSSL_INSTALL_DIR=$OPENSSL_INSTALL_DIR" >> $GITHUB_ENV
-          echo "OPENSSL_VERSION=$OPENSSL_VERSION" >> $GITHUB_ENV
           cd td/example/android/
           echo "./check-environment.sh"
           ./check-environment.sh
-          ./build-openssl.sh $ANDROID_SDK_ROOT $ANDROID_NDK_VERSION $OPENSSL_INSTALL_DIR openssl-$OPENSSL_VERSION
+          ./build-openssl.sh $ANDROID_SDK_ROOT $ANDROID_NDK_VERSION $OPENSSL_INSTALL_DIR openssl-$OPENSSL_INST_VER
 
       - name: build tdlib
         if: env.UPDATE_TDLIB == 'true'
         run: |
           cd td/example/android/
-          ./build-tdlib.sh $ANDROID_SDK_ROOT $ANDROID_NDK_VERSION '' '' 'JSON'
+            ./build-tdlib.sh $ANDROID_SDK_ROOT $ANDROID_NDK_VERSION '' '' 'JSON'
+            TDLIB_DEBUG_ZIP="${PWD}/example/android/tdlib/tdlib-debug.zip"
+            TDLIB_RELEASE_ZIP="${PWD}/example/android/tdlib/tdlib.zip"
+            
+            cp $TDLIB_DEBUG_ZIP $ARTIFACT_DIR/tdlib-Android-Debug-$version.zip
+            cp $TDLIB_RELEASE_ZIP $ARTIFACT_DIR/tdlib-Android-Release-$version.zip
+
+      - name: Upload To Artifacts Dir
+        if: env.UPDATE_TDLIB == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ArtifactsDir
+          path: $ARTIFACT_DIR/*.zip
+          retention-days: 1
+
+      - name: Download All Artifacts
+        if: env.UPDATE_TDLIB == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
 
       - name: Upload to Telegram
-        if: env.UPDATE_TDLIB == 'true'
+        if: env.UPDATE_TDLIB == 'false'
         env:
           API_ID: ${{ secrets.TELEGRAM_API_ID }}
           API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
@@ -108,8 +142,8 @@ jobs:
           MESSAGE_THREAD_ID: ${{ secrets.MESSAGE_THREAD_ID }}
           COMMIT_MESSAGE: ${{ env.commit_message }}
         run: |
-          TDLIB_ANDROID=td/example/android/tdlib/tdlib-debug.zip
           if [ ! -z "${{ secrets.TELEGRAM_BOT_TOKEN }}" ]; then
             pip3 install Telethon==${{ env.tdbuild_versions_Telethon }}
-            python3 .github/workflows/tguploadbot.py $TDLIB_ANDROID
+            cd artifacts && TG_UPLOAD_FILES=$(ls *.zip)
+            python3 .github/workflows/tguploadbot.py $TG_UPLOAD_FILES
           fi
