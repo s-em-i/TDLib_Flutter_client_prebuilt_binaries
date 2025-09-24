@@ -100,6 +100,7 @@ jobs:
               linux-x86_64 \
               --prefix="${OPENSSL_SRC_DIR}/install" \
               --openssldir="${OPENSSL_SRC_DIR}/install" \
+              enable-pic \
               -static
               make build_libs -j$(nproc)
               cp libcrypto.a libssl.a "${OPENSSL_ROOT_DIR}/lib/"
