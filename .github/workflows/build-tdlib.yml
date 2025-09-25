@@ -1,30 +1,24 @@
-# This is a basic workflow to help you get started with Actions
-
 name: tdlib-build-android
-
-# Controls when the workflow will run
 on:
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
-
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+permissions:
+  actions: write
+  contents: read
 jobs:
   build-tdlib-android:
-    # The type of runner that the job will run on
-    runs-on: ubuntu-22.04
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
+    runs-on: ubuntu-24.04
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+          fetch-tags: true
 
-      - name: clone TD lib and compare versions
+      - name: Clone TDLib and compare versions
         run: |
-          git clone https://github.com/s-em-i/TDLib_Flutter_client_prebuilt_binaries.git
-          cd TDLib_Flutter_client_prebuilt_binaries
-            LatestPrebuiltReleasedVersionTag=$(git describe --tags --abbrev=0 | sed 's/v//')
-            echo $LatestPrebuiltReleasedVersionTag
-          cd -
+          LatestPrebuiltReleasedVersionTag=$(git describe --tags --abbrev=0 | sed 's/v//')
+          echo $LatestPrebuiltReleasedVersionTag
+
           git clone https://github.com/tdlib/td.git
           cd td
             LastReleasedVersionTag=$(git log -n 1 --grep="Update version to " --oneline)
@@ -38,28 +32,33 @@ jobs:
               git checkout $commit_hash
               echo "version=$version" >> $GITHUB_ENV
               echo "commit_hash=$commit_hash" >> $GITHUB_ENV
-              echo "commit_message=$commit_hash Update version to $version" >> $GITHUB_ENV
               echo "UPDATE_TDLIB=true" >> $GITHUB_ENV
             fi
           cd -
 
-      - name: JSON to variables
+      - name: Trigger next Workflow per CLI
+        if: env.UPDATE_TDLIB == 'true'
+        run: |
+          RUN_ID="${{ github.run_id }}"
+          gh workflow run .github/workflows/build-tdlib-linux-x86_64.yaml \
+          --field commit_hash="$commit_hash" \
+          --field version="$version" \
+          --field UPDATE_TDLIB="$UPDATE_TDLIB" \
+          --field RUN_IDS="$RUN_ID" \
+          --ref ${{ github.ref }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: JSON to Variables
         if: env.UPDATE_TDLIB == 'true'
         uses: rgarcia-phi/json-to-variables@v1.1.0
         with:
           filename: '.github/workflows/td-version.json'
           prefix: tdbuild_versions
 
-      - name: install build essentials
+      - name: Install Build Essentials
         if: env.UPDATE_TDLIB == 'true'
         run: |
-          #rm -rf $ANDROID_HOME || echo "No ANDROID_HOME=$ANDROID_HOME Dir"
-          #rm -rf $ANDROID_HOME/cmdline-tools || echo "No ANDROID_HOME=$ANDROID_HOME/cmdline-tools Dir"
-          #ls -la $ANDROID_HOME
-
-          #rm -rf $ANDROID_SDK_ROOT || echo "No ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT Dir"
-          #rm -rf $HOME/.android/sdk || echo "HOME/.android/sdk=$HOME/.android/sdk Dir"
-          
           sudo apt-get update && sudo apt-get upgrade -y
           sudo apt-get install -y make git zlib1g-dev libssl-dev gperf php-cli cmake clang-14 libc++-14-dev libc++abi-14-dev build-essential libc6-dev-arm64-cross
           sudo apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu g++-aarch64-linux-gnu binutils-aarch64-linux-gnu
@@ -69,8 +68,7 @@ jobs:
           OPENSSL_INST_VER=$(dpkg-query -W -f='${Version}\n' openssl | cut -d'-' -f1 | sed -E 's/.*:(.*)\..*/\1/')
           CMAKE_INST_VER=$(dpkg-query -W -f='${Version}\n' cmake | cut -d'-' -f1 | sed -E 's/.*:(.*)\..*/\1/')
           HOST_ARCH=$(uname -m)
-          mkdir artifact
-          ARTIFACT_DIR="${PWD}/artifact"
+          mkdir artifacts && ARTIFACT_DIR="${PWD}/artifacts"
 
           echo "ZLIB_INST_VER=$ZLIB_INST_VER" >> $GITHUB_ENV
           echo "OPENSSL_INST_VER=$OPENSSL_INST_VER" >> $GITHUB_ENV
@@ -82,7 +80,7 @@ jobs:
         if: env.UPDATE_TDLIB == 'true'
         uses: android-actions/setup-android@v3.2.2
         with:
-          cmdline-tools-version: 11479570
+          cmdline-tools-version: ${{ env.tdbuild_versions_SDK_LONG_VER }}
           accept-android-sdk-licenses: true
           log-accepted-android-sdk-licenses: false
           packages: ''
@@ -103,7 +101,7 @@ jobs:
         env:
           ANDROID_HOME: ${{ env.ANDROID_HOME }}
       
-      - name: build openssl
+      - name: Build OpenSSL for Android
         if: env.UPDATE_TDLIB == 'true'
         run: |
           ANDROID_SDK_ROOT=$ANDROID_HOME
@@ -115,7 +113,7 @@ jobs:
           ./check-environment.sh
           ./build-openssl.sh $ANDROID_SDK_ROOT $ANDROID_NDK_VERSION $OPENSSL_INSTALL_DIR openssl-$OPENSSL_INST_VER
 
-      - name: build tdlib
+      - name: Build TDLib for Android
         if: env.UPDATE_TDLIB == 'true'
         run: |
           cd td/example/android/
@@ -133,26 +131,3 @@ jobs:
           name: ArtifactsDir
           path: ${{ env.ARTIFACT_DIR }}/*.zip
           retention-days: 1
-
-      - name: Download All Artifacts
-        if: env.UPDATE_TDLIB == 'true'
-        uses: actions/download-artifact@v4
-        with:
-          name: ArtifactsDir
-          path: artifacts
-
-      - name: Upload to Telegram
-        if: env.UPDATE_TDLIB == 'true'
-        env:
-          API_ID: ${{ secrets.TELEGRAM_API_ID }}
-          API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
-          SESSION: ${{ secrets.TELEGRAM_SESSION }}
-          CHAT_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
-          MESSAGE_THREAD_ID: ${{ secrets.MESSAGE_THREAD_ID }}
-          COMMIT_MESSAGE: ${{ env.commit_message }}
-        run: |
-          if [ ! -z "${{ secrets.TELEGRAM_BOT_TOKEN }}" ]; then
-            pip3 install Telethon==${{ env.tdbuild_versions_Telethon }}
-            cd artifacts && TG_UPLOAD_FILES=$(ls *.zip)
-            python3 .github/workflows/tguploadbot.py $TG_UPLOAD_FILES
-          fi
