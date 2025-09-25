@@ -43,8 +43,9 @@ jobs:
       - name: Trigger next Workflow per CLI
         if: env.UPDATE_TDLIB == 'true'
         run: |
-          RUN_IDS="${{ github.run_id }}"
-          gh workflow run .github/workflows/upload_artifacts.yaml --field commit_hash="$commit_hash" --field version="$version" --field UPDATE_TDLIB="$UPDATE_TDLIB" --field RUN_IDS="$RUN_IDS,$RUN_ID" --ref ${{ github.ref }}
+          RUN_ID="${{ github.run_id }}"
+          RUN_IDS="$RUN_IDS,$RUN_ID"
+          gh workflow run .github/workflows/upload_artifacts.yaml --field commit_hash="$commit_hash" --field version="$version" --field UPDATE_TDLIB="$UPDATE_TDLIB" --field RUN_IDS="$RUN_IDS" --ref ${{ github.ref }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Create Zip Files Build 3
