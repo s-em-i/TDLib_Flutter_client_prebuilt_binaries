@@ -2,7 +2,11 @@ name: build1
 
 on:
   workflow_dispatch:
-
+  
+permissions:
+  actions: write
+  contents: read
+  
 jobs:
   build1:
     runs-on: ubuntu-22.04
