@@ -1,47 +1,56 @@
-# This is a basic workflow to help you get started with Actions
-
 name: tdlib-build-linux-x86_64
-
-# Controls when the workflow will run
 on:
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
-
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+    inputs:
+      commit_hash:
+        description: 'Commit Hash'
+        required: true
+        type: string
+      version:
+        description: 'Version'
+        required: true
+        type: string
+      UPDATE_TDLIB:
+        description: 'UPDATE_TDLIB'
+        required: true
+        type: string
+        default: 'false'
+      RUN_IDS:
+        description: 'RUN_IDS'
+        required: true
+        type: string
+permissions:
+  actions: write
+  contents: read 
 jobs:
   build-tdlib-linux-x86_64:
-    # The type of runner that the job will run on
     runs-on: ubuntu-22.04
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v4
-
-      - name: clone TD lib and compare versions
+        with:
+          ref: ${{ github.ref }}
+          
+      - name: Parse Inputs in GITHUB_ENV
         run: |
-          git clone https://github.com/s-em-i/TDLib_Flutter_client_prebuilt_binaries.git
-          cd TDLib_Flutter_client_prebuilt_binaries
-            LatestPrebuiltReleasedVersionTag=$(git describe --tags --abbrev=0 | sed 's/v//')
-            echo $LatestPrebuiltReleasedVersionTag
-          cd -
-          git clone https://github.com/tdlib/td.git
-          cd td
-            LastReleasedVersionTag=$(git log -n 1 --grep="Update version to " --oneline)
-            commit_hash=$(echo "$LastReleasedVersionTag" | awk '{print $1}')
-            version=$(echo "$LastReleasedVersionTag" | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+\.' | sed 's/\.$//')
-            echo "$version"
+          echo "commit_hash=${{ inputs.commit_hash }}" >> $GITHUB_ENV
+          echo "version=${{ inputs.version }}" >> $GITHUB_ENV
+          echo "UPDATE_TDLIB=${{ inputs.UPDATE_TDLIB }}" >> $GITHUB_ENV
+          echo "RUN_IDS=${{ inputs.RUN_IDS }}" >> $GITHUB_ENV
 
-            echo "UPDATE_TDLIB=false" >> $GITHUB_ENV
-
-            if [[ $(echo -e "$version\n$LatestPrebuiltReleasedVersionTag" | sort -V | head -n1) == "$LatestPrebuiltReleasedVersionTag" ]]; then
-              git checkout $commit_hash
-              echo "version=$version" >> $GITHUB_ENV
-              echo "commit_hash=$commit_hash" >> $GITHUB_ENV
-              echo "commit_message=$commit_hash Update version to $version" >> $GITHUB_ENV
-              echo "UPDATE_TDLIB=true" >> $GITHUB_ENV
-            fi
-          cd -
+      - name: Trigger next Workflow per CLI
+        if: env.UPDATE_TDLIB == 'true'
+        run: |
+          RUN_ID="${{ github.run_id }}"
+          RUN_IDS="$RUN_IDS,$RUN_ID"
+          gh workflow run .github/workflows/build-tdlib-linux-arm64.yaml \
+          --field commit_hash="$commit_hash" \
+          --field version="$version" \
+          --field UPDATE_TDLIB="$UPDATE_TDLIB" \
+          --field RUN_IDS="$RUN_IDS" \
+          --ref ${{ github.ref }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: JSON to variables
         if: env.UPDATE_TDLIB == 'true'
@@ -50,7 +59,7 @@ jobs:
           filename: '.github/workflows/td-version.json'
           prefix: tdbuild_versions
 
-      - name: install build essentials
+      - name: Install Build Essentials
         if: env.UPDATE_TDLIB == 'true'
         run: |
           sudo apt-get update && sudo apt-get upgrade -y
@@ -60,30 +69,17 @@ jobs:
 
           ZLIB_INST_VER=$(dpkg-query -W -f='${Version}\n' zlib1g | cut -d'-' -f1 | sed -E 's/.*:(.*)\..*/\1/')
           OPENSSL_INST_VER=$(dpkg-query -W -f='${Version}\n' openssl | cut -d'-' -f1 | sed -E 's/.*:(.*)\..*/\1/')
+          CMAKE_INST_VER=$(dpkg-query -W -f='${Version}\n' cmake | cut -d'-' -f1 | sed -E 's/.*:(.*)\..*/\1/')
           HOST_ARCH=$(uname -m)
-          mkdir artifact
-          ARTIFACT_DIR="${PWD}/artifact"
+          mkdir artifacts && ARTIFACT_DIR="${PWD}/artifacts"
 
           echo "ZLIB_INST_VER=$ZLIB_INST_VER" >> $GITHUB_ENV
           echo "OPENSSL_INST_VER=$OPENSSL_INST_VER" >> $GITHUB_ENV
+          echo "CMAKE_INST_VER=$CMAKE_INST_VER" >> $GITHUB_ENV
           echo "HOST_ARCH=$HOST_ARCH" >> $GITHUB_ENV
           echo "ARTIFACT_DIR=$ARTIFACT_DIR" >> $GITHUB_ENV
 
-      - name: Getting Zlib and OpenSSL source
-        if: env.UPDATE_TDLIB == 'true'
-        run: |
-          cd td
-            ZLIB_SRC_DIR="${PWD}/zlib-$ZLIB_INST_VER"
-            wget https://zlib.net/fossils/zlib-$ZLIB_INST_VER.tar.gz
-            tar -xf zlib-$ZLIB_INST_VER.tar.gz
-            echo "ZLIB_SRC_DIR=$ZLIB_SRC_DIR" >> $GITHUB_ENV
-
-            OPENSSL_SRC_DIR="${PWD}/openssl-$OPENSSL_INST_VER"
-            wget https://github.com/openssl/openssl/releases/download/openssl-$OPENSSL_INST_VER/openssl-$OPENSSL_INST_VER.tar.gz
-            tar -xf openssl-$OPENSSL_INST_VER.tar.gz
-            echo "OPENSSL_SRC_DIR=$OPENSSL_SRC_DIR" >> $GITHUB_ENV
-
-      - name: Build TDLib Linux Release
+      - name: Build TDLib Linux x86_64 Release
         if: env.UPDATE_TDLIB == 'true'
         run: |
           cd td
@@ -105,12 +101,9 @@ jobs:
               cmake --build . --parallel $(nproc) --target install
             cd ..
 
-            echo "changing to $TDLIB_DIR"
-            echo "compressing to $ARTIFACT_DIR/$TDLIB_ZIP *"
+            cd "$TDLIB_DIR" && jar -cMf "$ARTIFACT_DIR/$TDLIB_ZIP" *
 
-            cd $TDLIB_DIR && jar -cMf "$ARTIFACT_DIR/$TDLIB_ZIP" *
-
-      - name: Build TDLib Linux Debug
+      - name: Build TDLib Linux x86_64 Debug
         if: env.UPDATE_TDLIB == 'true'
         run: |
           cd td
@@ -131,10 +124,8 @@ jobs:
               ..
               cmake --build . --parallel $(nproc) --target install
             cd ..
-            echo "changing to $TDLIB_DIR"
-            echo "compressing to $ARTIFACT_DIR/$TDLIB_ZIP *"
-
-            cd $TDLIB_DIR && jar -cMf "$ARTIFACT_DIR/$TDLIB_ZIP" *
+            
+            cd "$TDLIB_DIR" && jar -cMf "$ARTIFACT_DIR/$TDLIB_ZIP" *
 
       - name: Upload To Artifacts Dir
         if: env.UPDATE_TDLIB == 'true'
@@ -143,26 +134,3 @@ jobs:
           name: ArtifactsDir
           path: ${{ env.ARTIFACT_DIR }}/*.zip
           retention-days: 1
-
-      - name: Download All Artifacts
-        if: env.UPDATE_TDLIB == 'true'
-        uses: actions/download-artifact@v4
-        with:
-          name: ArtifactsDir
-          path: artifacts
-
-      - name: Upload to Telegram
-        if: env.UPDATE_TDLIB == 'true'
-        env:
-          API_ID: ${{ secrets.TELEGRAM_API_ID }}
-          API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
-          SESSION: ${{ secrets.TELEGRAM_SESSION }}
-          CHAT_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
-          MESSAGE_THREAD_ID: ${{ secrets.MESSAGE_THREAD_ID }}
-          COMMIT_MESSAGE: ${{ env.commit_message }}
-        run: |
-          if [ ! -z "${{ secrets.TELEGRAM_BOT_TOKEN }}" ]; then
-            pip3 install Telethon==${{ env.tdbuild_versions_Telethon }}
-            cd artifacts && TG_UPLOAD_FILES=$(ls *.zip)
-            python3 .github/workflows/tguploadbot.py $TG_UPLOAD_FILES
-          fi
