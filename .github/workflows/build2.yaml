@@ -28,7 +28,12 @@ permissions:
 jobs:
   build2:
     runs-on: ubuntu-22.04
-    steps:          
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          
       - name: Parse Inputs in GITHUB_ENV
         run: |
           echo "commit_hash=${{ inputs.commit_hash }}" >> $GITHUB_ENV
@@ -49,11 +54,6 @@ jobs:
           --ref ${{ github.ref }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.ref }}
           
       - name: Create Zip Files Build 2
         if: env.UPDATE_TDLIB == 'true'
