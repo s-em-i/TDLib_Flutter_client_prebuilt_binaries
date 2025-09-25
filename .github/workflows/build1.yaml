@@ -36,7 +36,8 @@ jobs:
               git checkout $commit_hash
               echo "version=$version" >> $GITHUB_ENV
               echo "commit_hash=$commit_hash" >> $GITHUB_ENV
-              echo "commit_message=$commit_hash Update version to $version" >> $GITHUB_ENV
+              #echo "commit_message=$commit_hash Update version to $version" >> $GITHUB_ENV
+              printf 'commit_message=%s\n%s\n' "TDLib Prebuilt Binaries v$version" "$commit_hash Update version to $version" >> $GITHUB_ENV
               echo "UPDATE_TDLIB=true" >> $GITHUB_ENV
             fi
           cd -
