@@ -43,7 +43,13 @@ jobs:
         if: env.UPDATE_TDLIB == 'true'
         run: |
           RUN_ID="${{ github.run_id }}"
-          gh workflow run .github/workflows/build2.yaml --field commit_hash="$commit_hash" --field version="$version" --field UPDATE_TDLIB="$UPDATE_TDLIB" --field RUN_IDS="$RUN_ID" --ref ${{ github.ref }}
+          gh workflow run .github/workflows/build2.yaml \
+          --field commit_hash="$commit_hash" \
+          --field version="$version" \
+          --field UPDATE_TDLIB="$UPDATE_TDLIB" \
+          --field RUN_IDS="$RUN_ID" \
+          --field commit_message="$commit_message" \
+          --ref ${{ github.ref }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           
