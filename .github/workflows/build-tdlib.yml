@@ -138,6 +138,7 @@ jobs:
         if: env.UPDATE_TDLIB == 'true'
         uses: actions/download-artifact@v4
         with:
+          name: ArtifactsDir
           path: artifacts
 
       - name: Upload to Telegram
