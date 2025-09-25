@@ -1,0 +1,113 @@
+name: upload_artifacts
+
+on:
+  workflow_dispatch:
+    inputs:
+      RUN_IDS:
+        description: 'RUN_IDS'
+        required: true
+        type: string
+      commit_message:
+        description: 'commit_message'
+        required: true
+        type: string
+      UPDATE_TDLIB:
+        description: 'UPDATE_TDLIB'
+        required: true
+        type: string
+        default: 'false'
+        
+jobs:
+  upload_artifacts:
+    runs-on: ubuntu-22.04
+    steps:   
+      - name: Parse Inputs in GITHUB_ENV
+        run: |
+          echo "RUN_IDS=${{ inputs.RUN_IDS }}" >> $GITHUB_ENV
+          echo "commit_message=${{ inputs.commit_message }}" >> $GITHUB_ENV
+          echo "UPDATE_TDLIB=${{ inputs.UPDATE_TDLIB }}" >> $GITHUB_ENV
+          
+      - name: Download Artifacts per Run-ID
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          IFS=',' read -ra RUN_ID_ARRAY <<< "$run_ids"
+          mkdir -p artifacts
+          
+          wait_for_run() {
+            local RUN_ID=$1
+            local MAX_WAIT=1800  # Max. 30 min in s
+            local POLL_INTERVAL=30  # Poll every 30s
+            local ELAPSED=0
+            
+            while [ $ELAPSED -lt $MAX_WAIT ]; do
+              STATUS=$(gh run view "$RUN_ID" --json=status,conclusion --jq '.status + " " + (.conclusion // "null")')
+              
+              if [[ $STATUS == "completed success" ]]; then
+                echo "Run $RUN_ID: Completed successfully!"
+                return 0
+              elif [[ $STATUS == "completed failure" ]]; then
+                echo "Run $RUN_ID: Failed!"
+                return 1
+              elif [[ $STATUS == "completed "* ]]; then
+                echo "Run $RUN_ID: Completed with neutral outcome."
+                return 0  # Oder return 1, je nach Bedarf
+              else
+                echo "Run $RUN_ID: Still $STATUS. Waiting..."
+              fi
+              
+              sleep $POLL_INTERVAL
+              ELAPSED=$((ELAPSED + POLL_INTERVAL))
+            done
+            
+            echo "Timeout waiting for Run $RUN_ID"
+            return 1
+          }
+          
+          ALL_SUCCESS=true
+          for RUN_ID in "${RUN_ID_ARRAY[@]}"; do
+            if ! wait_for_run "$RUN_ID"; then
+              echo "One or more runs failed. Aborting."
+              ALL_SUCCESS=false
+              break
+            fi
+          done
+          
+          if [ "$ALL_SUCCESS" != true ]; then
+            exit 1
+          fi
+          
+          echo "All runs completed successfully. Downloading artifacts..."
+          
+          for RUN_ID in "${RUN_ID_ARRAY[@]}"; do
+            echo "Downloading from run $RUN_ID"
+            ARTIFACT_URL=$(gh api \
+              "/repos/${{ github.repository }}/actions/runs/$RUN_ID/artifacts" \
+              --jq '.[0].archive_download_url' \
+              --header 'Accept:application/vnd.github.v3+json')
+            
+            if [ ! -z "$ARTIFACT_URL" ]; then
+              curl -L -H "Authorization: token $GITHUB_TOKEN" "$ARTIFACT_URL" | tar -xz -C artifacts/
+            else
+              echo "No artifact found for run $RUN_ID"
+            fi
+          done
+          
+          ls -la artifacts/*.zip || echo "No ZIPs found"
+
+      - name: Upload to Telegram
+        if: env.UPDATE_TDLIB == 'true'
+        env:
+          API_ID: ${{ secrets.TELEGRAM_API_ID }}
+          API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
+          SESSION: ${{ secrets.TELEGRAM_SESSION }}
+          CHAT_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
+          MESSAGE_THREAD_ID: ${{ secrets.MESSAGE_THREAD_ID }}
+          COMMIT_MESSAGE: ${{ env.commit_message }}
+        run: |
+          if [ ! -z "${{ secrets.TELEGRAM_BOT_TOKEN }}" ]; then
+            pip3 install Telethon==${{ env.tdbuild_versions_Telethon }}
+            TGUPLOAD="${PWD}/.github/workflows/tguploadbot.py"            
+            cd artifacts && TG_UPLOAD_FILES=$(ls *.zip)
+            python3 $TGUPLOAD $TG_UPLOAD_FILES
+          fi
