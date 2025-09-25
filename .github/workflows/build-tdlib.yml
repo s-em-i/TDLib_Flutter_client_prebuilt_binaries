@@ -66,7 +66,7 @@ jobs:
 
           ZLIB_INST_VER=$(dpkg-query -W -f='${Version}\n' zlib1g | cut -d'-' -f1 | sed -E 's/.*:(.*)\..*/\1/')
           OPENSSL_INST_VER=$(dpkg-query -W -f='${Version}\n' openssl | cut -d'-' -f1 | sed -E 's/.*:(.*)\..*/\1/')
-          CMAKE_INST_VER="${{ env.tdbuild_versions_SDK_LONG_VER }}"
+          CMAKE_INST_VER="${{ env.tdbuild_versions_cmake }}"
           HOST_ARCH=$(uname -m)
           mkdir artifacts && ARTIFACT_DIR="${PWD}/artifacts"
 
