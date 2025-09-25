@@ -21,12 +21,6 @@ jobs:
   upload_artifacts:
     runs-on: ubuntu-22.04
     steps:
-      - name: JSON to variables
-        if: env.UPDATE_TDLIB == 'true'
-        uses: rgarcia-phi/json-to-variables@v1.1.0
-        with:
-          filename: '.github/workflows/td-version.json'
-          prefix: tdbuild_versions
           
       - name: Parse Inputs in GITHUB_ENV
         run: |
@@ -34,6 +28,13 @@ jobs:
           echo "commit_message=${{ inputs.commit_message }}" >> $GITHUB_ENV
           echo "UPDATE_TDLIB=${{ inputs.UPDATE_TDLIB }}" >> $GITHUB_ENV
       
+      - name: JSON to variables
+        if: env.UPDATE_TDLIB == 'true'
+        uses: rgarcia-phi/json-to-variables@v1.1.0
+        with:
+          filename: '.github/workflows/td-version.json'
+          prefix: tdbuild_versions
+          
       - name: Update Distribution
         if: env.UPDATE_TDLIB == 'true'
         run: |
