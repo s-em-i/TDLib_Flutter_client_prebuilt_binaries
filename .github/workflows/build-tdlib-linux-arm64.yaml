@@ -105,6 +105,8 @@ jobs:
               cmake --build . --parallel $(nproc) --target install
             cd ..
 
+            echo "changing to $TDLIB_DIR"
+            echo "compressing to $ARTIFACT_DIR/$TDLIB_ZIP *"
             cd $TDLIB_DIR && jar -cMf $ARTIFACT_DIR/$TDLIB_ZIP *
 
       - name: Build TDLib Linux Debug
@@ -129,7 +131,9 @@ jobs:
               cmake --build . --parallel $(nproc) --target install
             cd ..
 
-            cd $TDLIB_DIR && jar -cMf $ARTIFACT_DIR/$TDLIB_ZIP *
+            echo "changing to $TDLIB_DIR"
+            echo "compressing to $ARTIFACT_DIR/$TDLIB_ZIP *"
+            cd $TDLIB_DIR && jar -cMf "$ARTIFACT_DIR/$TDLIB_ZIP" *
 
       - name: Upload To Artifacts Dir
         if: env.UPDATE_TDLIB == 'true'
