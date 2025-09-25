@@ -150,7 +150,7 @@ jobs:
           path: artifacts
 
       - name: Upload to Telegram
-        if: env.UPDATE_TDLIB == 'false'
+        if: env.UPDATE_TDLIB == 'true'
         env:
           API_ID: ${{ secrets.TELEGRAM_API_ID }}
           API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
