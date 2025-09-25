@@ -105,7 +105,10 @@ jobs:
               cmake --build . --parallel $(nproc) --target install
             cd ..
 
-            cd $TDLIB_DIR && jar -cMf $ARTIFACT_DIR/$TDLIB_ZIP *
+            echo "changing to $TDLIB_DIR"
+            echo "compressing to $ARTIFACT_DIR/$TDLIB_ZIP *"
+
+            cd $TDLIB_DIR && jar -cMf "$ARTIFACT_DIR/$TDLIB_ZIP" *
 
       - name: Build TDLib Linux Debug
         if: env.UPDATE_TDLIB == 'true'
@@ -128,8 +131,10 @@ jobs:
               ..
               cmake --build . --parallel $(nproc) --target install
             cd ..
+            echo "changing to $TDLIB_DIR"
+            echo "compressing to $ARTIFACT_DIR/$TDLIB_ZIP *"
 
-            cd $TDLIB_DIR && jar -cMf $ARTIFACT_DIR/$TDLIB_ZIP *
+            cd $TDLIB_DIR && jar -cMf "$ARTIFACT_DIR/$TDLIB_ZIP" *
 
       - name: Upload To Artifacts Dir
         if: env.UPDATE_TDLIB == 'true'
@@ -146,7 +151,7 @@ jobs:
           path: artifacts
 
       - name: Upload to Telegram
-        if: env.UPDATE_TDLIB == 'false'
+        if: env.UPDATE_TDLIB == 'true'
         env:
           API_ID: ${{ secrets.TELEGRAM_API_ID }}
           API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
