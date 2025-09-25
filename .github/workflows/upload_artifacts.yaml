@@ -26,6 +26,11 @@ jobs:
           echo "RUN_IDS=${{ inputs.RUN_IDS }}" >> $GITHUB_ENV
           echo "commit_message=${{ inputs.commit_message }}" >> $GITHUB_ENV
           echo "UPDATE_TDLIB=${{ inputs.UPDATE_TDLIB }}" >> $GITHUB_ENV
+      
+      - name: Update Distribution
+        if: env.UPDATE_TDLIB == 'true'
+        run: |
+          sudo apt-get update && sudo apt-get upgrade -y
           
       - name: Download Artifacts per Run-ID
         env:
