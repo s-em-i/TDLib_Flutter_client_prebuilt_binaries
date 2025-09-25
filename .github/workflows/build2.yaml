@@ -20,7 +20,11 @@ on:
         description: 'RUN_IDS'
         required: true
         type: string
-        
+
+permissions:
+  actions: write
+  contents: read        
+
 jobs:
   build2:
     runs-on: ubuntu-22.04
