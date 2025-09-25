@@ -31,6 +31,9 @@ jobs:
         if: env.UPDATE_TDLIB == 'true'
         run: |
           sudo apt-get update && sudo apt-get upgrade -y
+          sudo apt-get install -y make git zlib1g-dev libssl-dev gperf php-cli cmake clang-14 libc++-14-dev libc++abi-14-dev build-essential libc6-dev-arm64-cross
+          sudo apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu g++-aarch64-linux-gnu binutils-aarch64-linux-gnu
+          sudo apt-get install -y wget libncurses5-dev perl llvm-14 autoconf automake libtool pkg-config ninja-build libreadline-dev
           
       - name: Download Artifacts per Run-ID
         env:
