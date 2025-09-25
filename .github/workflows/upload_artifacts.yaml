@@ -35,29 +35,23 @@ jobs:
           filename: '.github/workflows/td-version.json'
           prefix: tdbuild_versions
           
-      - name: Update Distribution
-        if: env.UPDATE_TDLIB == 'true'
-        run: |
-          #sudo apt-get update && sudo apt-get upgrade -y
-          #sudo apt-get install -y make git zlib1g-dev libssl-dev gperf php-cli cmake clang-14 libc++-14-dev libc++abi-14-dev build-essential libc6-dev-arm64-cross
-          #sudo apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu g++-aarch64-linux-gnu binutils-aarch64-linux-gnu
-          #sudo apt-get install -y wget libncurses5-dev perl llvm-14 autoconf automake libtool pkg-config ninja-build libreadline-dev
-          
       - name: Download Artifacts per Run-ID
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           IFS=',' read -ra RUN_ID_ARRAY <<< "$run_ids"
+          echo "Processed Run-IDs: ${RUN_ID_ARRAY[*]}"
           mkdir -p artifacts
           
+          # Wait-Funktion (mit Fix für ungültige IDs)
           wait_for_run() {
             local RUN_ID=$1
-            local MAX_WAIT=1800  # Max. 30 min in s
-            local POLL_INTERVAL=30  # Poll every 30s
+            local MAX_WAIT=1800
+            local POLL_INTERVAL=30
             local ELAPSED=0
             
             while [ $ELAPSED -lt $MAX_WAIT ]; do
-              STATUS=$(gh run view "$RUN_ID" --json=status,conclusion --jq '.status + " " + (.conclusion // "null")')
+              STATUS=$(gh run view "$RUN_ID" --json=status,conclusion --jq '.status + " " + (.conclusion // "null")' 2>/dev/null || echo "error invalid_id")
               
               if [[ $STATUS == "completed success" ]]; then
                 echo "Run $RUN_ID: Completed successfully!"
@@ -67,7 +61,10 @@ jobs:
                 return 1
               elif [[ $STATUS == "completed "* ]]; then
                 echo "Run $RUN_ID: Completed with neutral outcome."
-                return 0  # Oder return 1, je nach Bedarf
+                return 0
+              elif [[ $STATUS == "error invalid_id" ]]; then
+                echo "Run $RUN_ID: Skipping Null IDs"
+                return 0
               else
                 echo "Run $RUN_ID: Still $STATUS. Waiting..."
               fi
@@ -82,6 +79,10 @@ jobs:
           
           ALL_SUCCESS=true
           for RUN_ID in "${RUN_ID_ARRAY[@]}"; do
+            if [ "$RUN_ID" = "null" ] || [ -z "$RUN_ID" ]; then
+              echo "Skipping invalid Run-ID: '$RUN_ID'"
+              continue
+            fi
             if ! wait_for_run "$RUN_ID"; then
               echo "One or more runs failed. Aborting."
               ALL_SUCCESS=false
@@ -93,23 +94,65 @@ jobs:
             exit 1
           fi
           
-          echo "All runs completed successfully. Downloading artifacts..."
+          echo "All valid runs completed successfully. Downloading artifacts..."
           
+          ZIP_COUNT=0
           for RUN_ID in "${RUN_ID_ARRAY[@]}"; do
+            if [ "$RUN_ID" = "null" ] || [ -z "$RUN_ID" ]; then
+              echo "Skipping invalid Run-ID while downloading: '$RUN_ID'"
+              continue
+            fi
+            
             echo "Downloading from run $RUN_ID"
-            ARTIFACT_URL=$(gh api \
+            
+            # Hole ALLE Artifacts und filter nach "ArtifactsDir"
+            API_RESPONSE=$(gh api \
               "/repos/${{ github.repository }}/actions/runs/$RUN_ID/artifacts" \
-              --jq '.[0].archive_download_url' \
+              --jq '{total: length, artifacts: [.[] | {name: .name, url: .archive_download_url}]}' \
               --header 'Accept:application/vnd.github.v3+json')
             
+            echo "API Response für Run $RUN_ID: $API_RESPONSE"
+            
+            TOTAL_ARTIFACTS=$(echo "$API_RESPONSE" | jq -r '.total // 0')
+            if [ "$TOTAL_ARTIFACTS" -eq 0 ]; then
+              echo "Keine Artifacts für Run $RUN_ID gefunden!"
+              continue
+            fi
+            
+            ARTIFACT_URL=$(echo "$API_RESPONSE" | jq -r '.artifacts[] | select(.name == "ArtifactsDir") | .url // empty')
             if [ ! -z "$ARTIFACT_URL" ]; then
-              curl -L -H "Authorization: token $GITHUB_TOKEN" "$ARTIFACT_URL" | tar -xz -C artifacts/
+              echo "Found Artifact 'ArtifactsDir' - Downloading: $ARTIFACT_URL"
+
+              DOWNLOAD_SUCCESS=$(curl -L -H "Authorization: token $GITHUB_TOKEN" "$ARTIFACT_URL" -o /tmp/artifact.tar.gz --fail --silent --show-error && echo "success" || echo "failed")
+              if [ "$DOWNLOAD_SUCCESS" = "success" ]; then
+                echo "Download erfolgreich! Entpacke..."
+                tar -xzf /tmp/artifact.tar.gz -C artifacts/ --strip-components=1  # --strip-components=1, falls nested
+                rm /tmp/artifact.tar.gz
+                
+                NEW_ZIPS=$(ls artifacts/*.zip 2>/dev/null | wc -l || echo 0)
+                ZIP_COUNT=$((ZIP_COUNT + NEW_ZIPS))
+                echo "Entpackt! Neue ZIPs: $NEW_ZIPS (Gesamt: $ZIP_COUNT)"
+                
+                echo "Inhalt von artifacts/:"
+                ls -la artifacts/
+              else
+                echo "Download broken for Run $RUN_ID (curl-Error: $?)"
+              fi
             else
-              echo "No artifact found for run $RUN_ID"
+              echo "No 'ArtifactsDir'-Artifact for Run $RUN_ID found!"
+
+              ARTIFACT_URL=$(echo "$API_RESPONSE" | jq -r '.artifacts[0].url // empty')
+              if [ ! -z "$ARTIFACT_URL" ]; then
+                echo "Fallback: Download first Artifact: $ARTIFACT_URL"
+              fi
             fi
           done
           
-          ls -la artifacts/*.zip || echo "No ZIPs found"
+          echo "Finale ZIP-Anzahl: $ZIP_COUNT"
+          if [ $ZIP_COUNT -eq 0 ]; then
+            echo "WARNING: No ZIPs to Download! Check Builds."
+          fi
+          ls -la artifacts/*.zip 2>/dev/null || echo "No ZIPs."
 
       - name: Upload to Telegram
         if: env.UPDATE_TDLIB == 'true'
