@@ -53,12 +53,12 @@ jobs:
       - name: install build essentials
         if: env.UPDATE_TDLIB == 'true'
         run: |
-          rm -rf $ANDROID_HOME || echo "No ANDROID_HOME=$ANDROID_HOME Dir"
-          rm -rf $ANDROID_HOME/cmdline-tools || echo "No ANDROID_HOME=$ANDROID_HOME/cmdline-tools Dir"
-          ls -la $ANDROID_HOME
+          #rm -rf $ANDROID_HOME || echo "No ANDROID_HOME=$ANDROID_HOME Dir"
+          #rm -rf $ANDROID_HOME/cmdline-tools || echo "No ANDROID_HOME=$ANDROID_HOME/cmdline-tools Dir"
+          #ls -la $ANDROID_HOME
 
-          rm -rf $ANDROID_SDK_ROOT || echo "No ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT Dir"
-          rm -rf $HOME/.android/sdk || echo "HOME/.android/sdk=$HOME/.android/sdk Dir"
+          #rm -rf $ANDROID_SDK_ROOT || echo "No ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT Dir"
+          #rm -rf $HOME/.android/sdk || echo "HOME/.android/sdk=$HOME/.android/sdk Dir"
           
           sudo apt-get update && sudo apt-get upgrade -y
           sudo apt-get install -y make git zlib1g-dev libssl-dev gperf php-cli cmake clang-14 libc++-14-dev libc++abi-14-dev build-essential libc6-dev-arm64-cross
@@ -82,7 +82,7 @@ jobs:
         if: env.UPDATE_TDLIB == 'true'
         uses: android-actions/setup-android@v3.2.2
         with:
-          cmdline-tools-version: ${{ env.tdbuild_versions_SDK_LONG_VER }}
+          cmdline-tools-version: 11479570
           accept-android-sdk-licenses: true
           log-accepted-android-sdk-licenses: false
           packages: ''
