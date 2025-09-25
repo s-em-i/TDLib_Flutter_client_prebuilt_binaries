@@ -20,10 +20,6 @@ on:
         description: 'RUN_IDS'
         required: true
         type: string
-      commit_message:
-        description: 'commit_message'
-        required: true
-        type: string
 
 permissions:
   actions: write
@@ -32,19 +28,13 @@ permissions:
 jobs:
   build2:
     runs-on: ubuntu-22.04
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.ref }}
-          
+    steps:          
       - name: Parse Inputs in GITHUB_ENV
         run: |
           echo "commit_hash=${{ inputs.commit_hash }}" >> $GITHUB_ENV
           echo "version=${{ inputs.version }}" >> $GITHUB_ENV
           echo "UPDATE_TDLIB=${{ inputs.UPDATE_TDLIB }}" >> $GITHUB_ENV
           echo "RUN_IDS=${{ inputs.RUN_IDS }}" >> $GITHUB_ENV
-          echo "commit_message=${{ inputs.commit_message }}" >> $GITHUB_ENV
 
       - name: Trigger next Workflow per CLI
         if: env.UPDATE_TDLIB == 'true'
@@ -56,10 +46,14 @@ jobs:
           --field version="$version" \
           --field UPDATE_TDLIB="$UPDATE_TDLIB" \
           --field RUN_IDS="$RUN_IDS" \
-          --field commit_message="$commit_message" \
           --ref ${{ github.ref }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
           
       - name: Create Zip Files Build 2
         if: env.UPDATE_TDLIB == 'true'
