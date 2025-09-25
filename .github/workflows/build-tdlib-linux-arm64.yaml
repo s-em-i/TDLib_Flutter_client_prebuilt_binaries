@@ -161,6 +161,7 @@ jobs:
         run: |
           if [ ! -z "${{ secrets.TELEGRAM_BOT_TOKEN }}" ]; then
             pip3 install Telethon==${{ env.tdbuild_versions_Telethon }}
-            cd artifacts && TG_UPLOAD_FILES=$(ls *.zip)
-            python3 .github/workflows/tguploadbot.py $TG_UPLOAD_FILES
+            cd artifacts
+            TG_UPLOAD_FILES=$(ls *.zip) || echo "no zip files"
+            python3 .github/workflows/tguploadbot.py $(ls *.zip)
           fi
