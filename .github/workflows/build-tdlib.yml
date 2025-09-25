@@ -118,8 +118,8 @@ jobs:
         run: |
           cd td/example/android/
             ./build-tdlib.sh $ANDROID_SDK_ROOT $ANDROID_NDK_VERSION '' '' 'JSON'
-            TDLIB_DEBUG_ZIP="${PWD}/example/android/tdlib/tdlib-debug.zip"
-            TDLIB_RELEASE_ZIP="${PWD}/example/android/tdlib/tdlib.zip"
+            TDLIB_DEBUG_ZIP="${PWD}/tdlib/tdlib-debug.zip"
+            TDLIB_RELEASE_ZIP="${PWD}/tdlib/tdlib.zip"
             
             cp $TDLIB_DEBUG_ZIP "$ARTIFACT_DIR/tdlib-Android-Debug-$version.zip"
             cp $TDLIB_RELEASE_ZIP "$ARTIFACT_DIR/tdlib-Android-Release-$version.zip"
