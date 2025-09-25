@@ -3,5 +3,6 @@
     "SDK_LONG_VER": "12266719",
     "platform": "34",
     "build-tools": "34.0.0",
+    "cmake": "3.22.1",
     "Telethon": "1.41.2"
 }
