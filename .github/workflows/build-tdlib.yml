@@ -53,6 +53,7 @@ jobs:
       - name: install build essentials
         if: env.UPDATE_TDLIB == 'true'
         run: |
+          rm -rf $ANDROID_HOME || echo "No ANDROID_HOME=$ANDROID_HOME Dir"
           sudo apt-get update && sudo apt-get upgrade -y
           sudo apt-get install -y make git zlib1g-dev libssl-dev gperf php-cli cmake clang-14 libc++-14-dev libc++abi-14-dev build-essential libc6-dev-arm64-cross
           sudo apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu g++-aarch64-linux-gnu binutils-aarch64-linux-gnu
@@ -75,7 +76,7 @@ jobs:
         if: env.UPDATE_TDLIB == 'true'
         uses: android-actions/setup-android@v3.2.2
         with:
-          cmdline-tools-version: 12266719
+          cmdline-tools-version: ${{ env.tdbuild_versions_SDK_LONG_VER }}
           accept-android-sdk-licenses: true
           log-accepted-android-sdk-licenses: false
 
@@ -115,8 +116,8 @@ jobs:
             TDLIB_DEBUG_ZIP="${PWD}/example/android/tdlib/tdlib-debug.zip"
             TDLIB_RELEASE_ZIP="${PWD}/example/android/tdlib/tdlib.zip"
             
-            cp $TDLIB_DEBUG_ZIP $ARTIFACT_DIR/tdlib-Android-Debug-$version.zip
-            cp $TDLIB_RELEASE_ZIP $ARTIFACT_DIR/tdlib-Android-Release-$version.zip
+            cp $TDLIB_DEBUG_ZIP "$ARTIFACT_DIR/tdlib-Android-Debug-$version.zip"
+            cp $TDLIB_RELEASE_ZIP "$ARTIFACT_DIR/tdlib-Android-Release-$version.zip"
 
       - name: Upload To Artifacts Dir
         if: env.UPDATE_TDLIB == 'true'
@@ -133,7 +134,7 @@ jobs:
           path: artifacts
 
       - name: Upload to Telegram
-        if: env.UPDATE_TDLIB == 'false'
+        if: env.UPDATE_TDLIB == 'true'
         env:
           API_ID: ${{ secrets.TELEGRAM_API_ID }}
           API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
