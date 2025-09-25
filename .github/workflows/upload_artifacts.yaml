@@ -128,10 +128,10 @@ jobs:
             
             if [ ! -z "$ARTIFACT_URL" ]; then
               echo "Found '$ARTIFACT_NAME' - Downloading: $ARTIFACT_URL"
-              if curl -L -H "Authorization: token $GITHUB_TOKEN" "$ARTIFACT_URL" -o /tmp/artifact.tar.gz --fail --silent --show-error; then
+              if curl -L -H "Authorization: token $GITHUB_TOKEN" "$ARTIFACT_URL" -o /tmp/artifact.zip --fail --silent --show-error; then
                 echo "Download success! Extracting..."
-                tar -xzf /tmp/artifact.tar.gz -C artifacts/
-                rm /tmp/artifact.tar.gz
+                unzip -q -j /tmp/artifact.zip -d artifacts/  # ZIP-Entpacken (flach)
+                rm /tmp/artifact.zip
                 
                 NEW_ZIPS=$(ls artifacts/*.zip 2>/dev/null | wc -l || echo 0)
                 ZIP_COUNT=$((ZIP_COUNT + NEW_ZIPS))
@@ -149,10 +149,10 @@ jobs:
               FALLBACK_NAME=$(echo "$API_RESPONSE" | jq -r '.artifacts[0].name // empty')
               if [ ! -z "$FALLBACK_URL" ]; then
                 echo "Fallback: Downloading first artifact '$FALLBACK_NAME': $FALLBACK_URL"
-                if curl -L -H "Authorization: token $GITHUB_TOKEN" "$FALLBACK_URL" -o /tmp/artifact.tar.gz --fail --silent --show-error; then
+                if curl -L -H "Authorization: token $GITHUB_TOKEN" "$FALLBACK_URL" -o /tmp/artifact.zip --fail --silent --show-error; then
                   echo "Fallback download success! Extracting..."
-                  tar -xzf /tmp/artifact.tar.gz -C artifacts/
-                  rm /tmp/artifact.tar.gz
+                  unzip -q -j /tmp/artifact.zip -d artifacts/  # ZIP-Entpacken (flach)
+                  rm /tmp/artifact.zip
                   
                   NEW_ZIPS=$(ls artifacts/*.zip 2>/dev/null | wc -l || echo 0)
                   ZIP_COUNT=$((ZIP_COUNT + NEW_ZIPS))
