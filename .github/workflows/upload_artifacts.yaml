@@ -21,7 +21,7 @@ jobs:
   upload_artifacts:
     runs-on: ubuntu-22.04
     steps:
-          
+      - uses: actions/checkout@v4    
       - name: Parse Inputs in GITHUB_ENV
         run: |
           echo "RUN_IDS=${{ inputs.RUN_IDS }}" >> $GITHUB_ENV
