@@ -44,7 +44,7 @@ jobs:
           echo "version=${{ inputs.version }}" >> $GITHUB_ENV
           echo "UPDATE_TDLIB=${{ inputs.UPDATE_TDLIB }}" >> $GITHUB_ENV
           echo "RUN_IDS=${{ inputs.RUN_IDS }}" >> $GITHUB_ENV
-          echo "commit_message=$commit_message" >> $GITHUB_ENV
+          echo "commit_message=${{ inputs.commit_message }}" >> $GITHUB_ENV
 
       - name: Trigger next Workflow per CLI
         if: env.UPDATE_TDLIB == 'true'
