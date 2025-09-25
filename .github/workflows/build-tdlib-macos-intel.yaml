@@ -57,6 +57,7 @@ jobs:
           echo "OPENSSL_INST_VER=$OPENSSL_INST_VER" >> $GITHUB_ENV
           echo "HOST_ARCH=$HOST_ARCH" >> $GITHUB_ENV
           echo "ARTIFACT_DIR=$ARTIFACT_DIR" >> $GITHUB_ENV
+          printf "commit_message<<EOF\n%s\n%s\nEOF\n" "TDLib Prebuilt Binaries $version" "$commit_hash Update version to $version" >> $GITHUB_ENV
 
       - name: Build TDLib macOS x86_64 Release
         if: env.UPDATE_TDLIB == 'true'
@@ -82,7 +83,7 @@ jobs:
             cd $TDLIB_DIR && jar -cMf "$ARTIFACT_DIR/$TDLIB_ZIP" *
 
       - name: Build TDLib macOS x86_64 Debug
-        if: env.UPDATE_TDLIB == 'false'
+        if: env.UPDATE_TDLIB == 'true'
         run: |
           cd td
             BUILD_TYPE="Debug"
@@ -136,5 +137,4 @@ jobs:
               TG_UPLOAD_FILES=$(ls *.zip)
               ls -l
             python3 $TGUPLOAD $TG_UPLOAD_FILES
-          fi
           fi
