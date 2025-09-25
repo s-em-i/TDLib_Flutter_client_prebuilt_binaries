@@ -44,7 +44,6 @@ jobs:
       - name: Trigger next Workflow per CLI
         if: env.UPDATE_TDLIB == 'true'
         run: |
-          commit_message="TDLib Prebuilt Binaries $version"$'\n'"$commit_hash Update version to $version"
           RUN_ID="${{ github.run_id }}"
           RUN_IDS="$RUN_IDS,$RUN_ID"
           gh workflow run .github/workflows/upload_artifacts.yaml \
@@ -52,7 +51,6 @@ jobs:
           --field version="$version" \
           --field UPDATE_TDLIB="$UPDATE_TDLIB" \
           --field RUN_IDS="$RUN_IDS" \
-          --field commit_message="$commit_message" \
           --ref ${{ github.ref }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
