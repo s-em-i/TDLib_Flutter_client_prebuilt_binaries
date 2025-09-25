@@ -39,12 +39,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          IFS=',' read -ra RUN_ID_ARRAY <<< "$RUN_IDS"  # Groß "RUN_IDS"!
-          echo "Processed Run-IDs: ${RUN_ID_ARRAY[*]}"  # Sollte z.B. "1800351637 null null" zeigen
+          IFS=',' read -ra RUN_ID_ARRAY <<< "$RUN_IDS"
+          echo "Processed Run-IDs: ${RUN_ID_ARRAY[*]}"  # z.B. '18003619564 null null'
           
           mkdir -p artifacts
           
-          # Wait-Funktion (unverändert, mit Fix für ungültige IDs)
+          # Wait-Funktion
           wait_for_run() {
             local RUN_ID=$1
             local MAX_WAIT=1800
@@ -78,7 +78,7 @@ jobs:
             return 1
           }
           
-          # Warte-Loop (skip null/leer)
+          # Warte-Loop
           ALL_SUCCESS=true
           for RUN_ID in "${RUN_ID_ARRAY[@]}"; do
             if [ "$RUN_ID" = "null" ] || [ -z "$RUN_ID" ]; then
@@ -98,7 +98,7 @@ jobs:
           
           echo "All valid runs completed successfully. Downloading artifacts..."
           
-          # Download-Loop (VOLLSTÄNDIG – das fehlte in deinem Log!)
+          # Download-Loop
           ZIP_COUNT=0
           for RUN_ID in "${RUN_ID_ARRAY[@]}"; do
             if [ "$RUN_ID" = "null" ] || [ -z "$RUN_ID" ]; then
@@ -108,13 +108,13 @@ jobs:
             
             echo "Downloading from run $RUN_ID"
             
-            # Hole ALLE Artifacts und filter nach "ArtifactsDir"
+            # API-Query mit Fix für Objekt-Struktur
             API_RESPONSE=$(gh api \
               "/repos/${{ github.repository }}/actions/runs/$RUN_ID/artifacts" \
-              --jq '{total: length, artifacts: [.[] | {name: .name, url: .archive_download_url}]}' \
-              --header 'Accept:application/vnd.github.v3+json')
+              --jq '{total: .total_count, artifacts: [.artifacts[] | {name: .name, url: .archive_download_url}]}' \
+              --header 'Accept:application/vnd.github.v3+json' 2>/dev/null || echo '{"total":0,"artifacts":[]}')
             
-            echo "API Response for Run $RUN_ID: $API_RESPONSE"  # Debug: JSON-Output
+            echo "API Response for Run $RUN_ID: $API_RESPONSE"  # Debug: Sollte {"total":1,"artifacts":[{"name":"ArtifactsDir","url":"..."}]} zeigen
             
             TOTAL_ARTIFACTS=$(echo "$API_RESPONSE" | jq -r '.total // 0')
             if [ "$TOTAL_ARTIFACTS" -eq 0 ]; then
@@ -124,12 +124,13 @@ jobs:
             
             # Speziell für "ArtifactsDir"
             ARTIFACT_URL=$(echo "$API_RESPONSE" | jq -r '.artifacts[] | select(.name == "ArtifactsDir") | .url // empty')
+            ARTIFACT_NAME=$(echo "$API_RESPONSE" | jq -r '.artifacts[] | select(.name == "ArtifactsDir") | .name // empty')
+            
             if [ ! -z "$ARTIFACT_URL" ]; then
-              echo "Found 'ArtifactsDir' - Downloading: $ARTIFACT_URL"
-              DOWNLOAD_SUCCESS=$(curl -L -H "Authorization: token $GITHUB_TOKEN" "$ARTIFACT_URL" -o /tmp/artifact.tar.gz --fail --silent --show-error && echo "success" || echo "failed")
-              if [ "$DOWNLOAD_SUCCESS" = "success" ]; then
+              echo "Found '$ARTIFACT_NAME' - Downloading: $ARTIFACT_URL"
+              if curl -L -H "Authorization: token $GITHUB_TOKEN" "$ARTIFACT_URL" -o /tmp/artifact.tar.gz --fail --silent --show-error; then
                 echo "Download success! Extracting..."
-                tar -xzf /tmp/artifact.tar.gz -C artifacts/ --strip-components=0  # Passe strip an, falls nested
+                tar -xzf /tmp/artifact.tar.gz -C artifacts/
                 rm /tmp/artifact.tar.gz
                 
                 NEW_ZIPS=$(ls artifacts/*.zip 2>/dev/null | wc -l || echo 0)
@@ -144,11 +145,24 @@ jobs:
             else
               echo "No 'ArtifactsDir' for Run $RUN_ID!"
               # Fallback: Erster Artifact
-              ARTIFACT_URL=$(echo "$API_RESPONSE" | jq -r '.artifacts[0].url // empty')
-              if [ ! -z "$ARTIFACT_URL" ]; then
-                echo "Fallback: Downloading first artifact: $ARTIFACT_URL"
-                # Wiederhole Download-Logik (kopiere den curl/tar-Block hier rein, falls nötig)
-                # ... (curl + tar wie oben)
+              FALLBACK_URL=$(echo "$API_RESPONSE" | jq -r '.artifacts[0].url // empty')
+              FALLBACK_NAME=$(echo "$API_RESPONSE" | jq -r '.artifacts[0].name // empty')
+              if [ ! -z "$FALLBACK_URL" ]; then
+                echo "Fallback: Downloading first artifact '$FALLBACK_NAME': $FALLBACK_URL"
+                if curl -L -H "Authorization: token $GITHUB_TOKEN" "$FALLBACK_URL" -o /tmp/artifact.tar.gz --fail --silent --show-error; then
+                  echo "Fallback download success! Extracting..."
+                  tar -xzf /tmp/artifact.tar.gz -C artifacts/
+                  rm /tmp/artifact.tar.gz
+                  
+                  NEW_ZIPS=$(ls artifacts/*.zip 2>/dev/null | wc -l || echo 0)
+                  ZIP_COUNT=$((ZIP_COUNT + NEW_ZIPS))
+                  echo "Fallback extracted! New ZIPs: $NEW_ZIPS (Total: $ZIP_COUNT)"
+                  
+                  echo "Contents of artifacts/:"
+                  ls -la artifacts/
+                else
+                  echo "Fallback download failed for Run $RUN_ID (curl error: $?)"
+                fi
               fi
             fi
           done
