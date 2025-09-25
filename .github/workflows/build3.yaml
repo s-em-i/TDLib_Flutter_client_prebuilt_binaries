@@ -16,17 +16,33 @@ on:
         required: true
         type: string
         default: 'false'
+      RUN_IDS:
+        description: 'RUN_IDS'
+        required: true
+        type: string
         
 jobs:
   build3:
     runs-on: ubuntu-22.04
-    steps:   
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          
       - name: Parse Inputs in GITHUB_ENV
         run: |
           echo "commit_hash=${{ inputs.commit_hash }}" >> $GITHUB_ENV
           echo "version=${{ inputs.version }}" >> $GITHUB_ENV
           echo "UPDATE_TDLIB=${{ inputs.UPDATE_TDLIB }}" >> $GITHUB_ENV
-          
+
+      - name: Trigger next Workflow per CLI
+        if: env.UPDATE_TDLIB == 'true'
+        run: |
+          RUN_IDS="${{ github.run_id }}"
+          gh workflow run .github/workflows/upload_artifacts.yaml --field commit_hash="$commit_hash" --field version="$version" --field UPDATE_TDLIB="$UPDATE_TDLIB" --field RUN_IDS="$RUN_IDS,$RUN_ID" --ref ${{ github.ref }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Create Zip Files Build 3
         if: env.UPDATE_TDLIB == 'true'
         run: |
