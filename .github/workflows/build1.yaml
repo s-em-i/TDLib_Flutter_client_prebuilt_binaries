@@ -62,15 +62,15 @@ jobs:
       - name: Trigger Workflows per CLI
         if: env.UPDATE_TDLIB == 'true'
         run: |
-          RUN_IDS="$(gh run list --workflow=build1.yaml --branch ${{ github.ref_name }} --limit 1 --json=databaseId --status=queued | jq -r '.[0].databaseId')
+          RUN_IDS="${{ github.run_id }}"
           
           gh workflow run .github/workflows/build2.yaml --field commit_hash="$commit_hash" --field version="$version" --field UPDATE_TDLIB="$UPDATE_TDLIB" --ref ${{ github.ref }}
           sleep 2
-          RUN_IDS="$RUN_IDS,$(gh run list --workflow=build2.yaml --branch ${{ github.ref_name }} --limit 1 --json=databaseId --status=queued | jq -r '.[0].databaseId')
+          RUN_IDS="$RUN_IDS,$(gh run list --workflow=build2.yaml --branch ${{ github.ref_name }} --limit 1 --json=databaseId --status=queued | jq -r '.[0].databaseId')"
           
           gh workflow run .github/workflows/build3.yaml --field commit_hash="$commit_hash" --field version="$version" --field UPDATE_TDLIB="$UPDATE_TDLIB"  --ref ${{ github.ref }}
           sleep 2
-          RUN_IDS="$RUN_IDS,$(gh run list --workflow=build3.yaml --branch ${{ github.ref_name }} --limit 1 --json=databaseId --status=queued | jq -r '.[0].databaseId')
+          RUN_IDS="$RUN_IDS,$(gh run list --workflow=build3.yaml --branch ${{ github.ref_name }} --limit 1 --json=databaseId --status=queued | jq -r '.[0].databaseId')"
 
           gh workflow run .github/workflows/upload_artifacts.yaml --field RUN_IDS="$RUN_IDS" --field commit_message="$commit_message" --field UPDATE_TDLIB="$UPDATE_TDLIB"  --ref ${{ github.ref }}
 
