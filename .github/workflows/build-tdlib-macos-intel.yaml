@@ -48,7 +48,7 @@ jobs:
         run: |
           #xcode-select --install
           #/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-          brew install gperf cmake openssl coreutils
+          brew install gperf coreutils
 
           OPENSSL_INST_VER="/usr/local/opt/openssl/"
           HOST_ARCH=$(uname -m)
