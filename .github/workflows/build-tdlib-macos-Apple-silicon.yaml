@@ -59,8 +59,15 @@ jobs:
           echo "ARTIFACT_DIR=$ARTIFACT_DIR" >> $GITHUB_ENV
           printf "commit_message<<EOF\n%s\n%s\nEOF\n" "TDLib Prebuilt Binaries $version" "$commit_hash Update version to $version" >> $GITHUB_ENV
 
-      - name: Build TDLib macOS Apple silicon Release
+      - name: Create Zip Files Build 1
         if: env.UPDATE_TDLIB == 'true'
+        run: |          
+          wget -O "$ARTIFACT_DIR/build1_01.zip" https://zlib.net/fossils/zlib-1.3.1.tar.gz
+          wget -O "$ARTIFACT_DIR/build1_02.zip" https://zlib.net/fossils/zlib-1.3.1.tar.gz
+          wget -O "$ARTIFACT_DIR/build1_03.zip" https://zlib.net/fossils/zlib-1.3.1.tar.gz
+
+      - name: Build TDLib macOS Apple silicon Release
+        if: env.UPDATE_TDLIB == 'false'
         run: |
           cd td
             BUILD_TYPE="Release"
@@ -84,7 +91,7 @@ jobs:
             cd $TDLIB_DIR && jar -cMf "$ARTIFACT_DIR/$TDLIB_ZIP" *
 
       - name: Build TDLib macOS Apple silicon Debug
-        if: env.UPDATE_TDLIB == 'true'
+        if: env.UPDATE_TDLIB == 'false'
         run: |
           cd td
             BUILD_TYPE="Debug"
@@ -133,6 +140,7 @@ jobs:
           COMMIT_MESSAGE: ${{ env.commit_message }}
         run: |
           if [ ! -z "${{ secrets.TELEGRAM_BOT_TOKEN }}" ]; then
+            brew install python
             pip3 install Telethon==${{ env.tdbuild_versions_Telethon }}
             TGUPLOAD="${PWD}/.github/workflows/tguploadbot.py"            
             cd artifacts
