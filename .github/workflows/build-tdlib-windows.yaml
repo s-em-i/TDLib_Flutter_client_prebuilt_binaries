@@ -26,13 +26,13 @@ jobs:
             version=$(echo "$LastReleasedVersionTag" | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+\.' | sed 's/\.$//')
             echo "$version"
 
-            echo "UPDATE_TDLIB=false" >> $GITHUB_ENV
+            echo "UPDATE_TDLIB=false" >> "$env:GITHUB_ENV"
 
             if [[ $(echo -e "$version\n$LatestPrebuiltReleasedVersionTag" | sort -V | head -n1) == "$LatestPrebuiltReleasedVersionTag" ]]; then
               git checkout $commit_hash
-              echo "version=$version" >> $GITHUB_ENV
-              echo "commit_hash=$commit_hash" >> $GITHUB_ENV
-              echo "UPDATE_TDLIB=true" >> $GITHUB_ENV
+              echo "version=$version" >> "$env:GITHUB_ENV"
+              echo "commit_hash=$commit_hash" >> "$env:GITHUB_ENV"
+              echo "UPDATE_TDLIB=true" >> "$env:GITHUB_ENV"
             fi
           cd -
           choco install wget -y
@@ -51,9 +51,9 @@ jobs:
           HOST_ARCH=$(uname -m)
           mkdir -p artifacts && ARTIFACT_DIR="${PWD}/artifacts"
           echo "ARTIFACT_DIR-Wert: $ARTIFACT_DIR"
-          echo "HOST_ARCH=$HOST_ARCH" >> $GITHUB_ENV
-          echo "ARTIFACT_DIR=$ARTIFACT_DIR" >> $GITHUB_ENV
-          printf "commit_message<<EOF\n%s\n%s\nEOF\n" "TDLib Prebuilt Binaries $version" "$commit_hash Update version to $version" >> $GITHUB_ENV
+          echo "HOST_ARCH=$HOST_ARCH" >> "$env:GITHUB_ENV"
+          echo "ARTIFACT_DIR=$ARTIFACT_DIR" >> "$env:GITHUB_ENV"
+          printf "commit_message<<EOF\n%s\n%s\nEOF\n" "TDLib Prebuilt Binaries $version" "$commit_hash Update version to $version" >> "$env:GITHUB_ENV"
           
           cd td
             git clone https://github.com/Microsoft/vcpkg.git
