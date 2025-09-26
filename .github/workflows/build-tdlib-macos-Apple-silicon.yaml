@@ -1,0 +1,142 @@
+name: tdlib-build-macos-Apple-silicon
+on:
+  workflow_dispatch:
+permissions:
+  actions: write
+  contents: read
+jobs:
+  build-tdlib-macos-Apple-silicon:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+          fetch-tags: true
+          
+      - name: Clone TDLib and compare versions
+        run: |
+          LatestPrebuiltReleasedVersionTag=$(git describe --tags --abbrev=0 | sed 's/v//')
+          echo $LatestPrebuiltReleasedVersionTag
+
+          git clone https://github.com/tdlib/td.git
+          cd td
+            LastReleasedVersionTag=$(git log -n 1 --grep="Update version to " --oneline)
+            commit_hash=$(echo "$LastReleasedVersionTag" | awk '{print $1}')
+            version=$(echo "$LastReleasedVersionTag" | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+\.' | sed 's/\.$//')
+            echo "$version"
+
+            echo "UPDATE_TDLIB=false" >> $GITHUB_ENV
+
+            if [[ $(echo -e "$version\n$LatestPrebuiltReleasedVersionTag" | sort -V | head -n1) == "$LatestPrebuiltReleasedVersionTag" ]]; then
+              git checkout $commit_hash
+              echo "version=$version" >> $GITHUB_ENV
+              echo "commit_hash=$commit_hash" >> $GITHUB_ENV
+              echo "UPDATE_TDLIB=true" >> $GITHUB_ENV
+            fi
+          cd -
+
+      - name: JSON to variables
+        if: env.UPDATE_TDLIB == 'true'
+        uses: rgarcia-phi/json-to-variables@v1.1.0
+        with:
+          filename: '.github/workflows/td-version.json'
+          prefix: tdbuild_versions
+
+      - name: Install Build Essentials
+        if: env.UPDATE_TDLIB == 'true'
+        run: |
+          #xcode-select --install
+          #/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+          brew install gperf coreutils
+
+          OPENSSL_INST_VER="/opt/homebrew/opt/openssl/"
+          HOST_ARCH=$(uname -m)
+          mkdir artifacts && ARTIFACT_DIR="${PWD}/artifacts"
+
+          echo "OPENSSL_INST_VER=$OPENSSL_INST_VER" >> $GITHUB_ENV
+          echo "HOST_ARCH=$HOST_ARCH" >> $GITHUB_ENV
+          echo "ARTIFACT_DIR=$ARTIFACT_DIR" >> $GITHUB_ENV
+          printf "commit_message<<EOF\n%s\n%s\nEOF\n" "TDLib Prebuilt Binaries $version" "$commit_hash Update version to $version" >> $GITHUB_ENV
+
+      - name: Build TDLib macOS Apple silicon Release
+        if: env.UPDATE_TDLIB == 'true'
+        run: |
+          cd td
+            BUILD_TYPE="Release"
+            SYSTEM="Apple-silicon"
+            echo "Building TDLib for $SYSTEM $HOST_ARCH $BUILD_TYPE"
+            TDLIB_DIR="${PWD}/third_party/td/$SYSTEM-$HOST_ARCH-$BUILD_TYPE"
+            TDLIB_DIR="${PWD}/tdlib"
+            TDLIB_ZIP="tdlib-$SYSTEM-$HOST_ARCH-$BUILD_TYPE-$version.zip"
+
+            rm -rf build && mkdir build && cd build
+              cmake -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
+              -DOPENSSL_ROOT_DIR="$OPENSSL_INST_VER" \
+              -DCMAKE_INSTALL_PREFIX:PATH="${TDLIB_DIR}" \
+              -DTD_ENABLE_LTO=ON \
+              ..
+              cmake --build . --parallel $(nproc) --target install
+            cd ..
+
+            echo "changing to $TDLIB_DIR"
+            echo "compressing to $ARTIFACT_DIR/$TDLIB_ZIP *"
+            cd $TDLIB_DIR && jar -cMf "$ARTIFACT_DIR/$TDLIB_ZIP" *
+
+      - name: Build TDLib macOS Apple silicon Debug
+        if: env.UPDATE_TDLIB == 'true'
+        run: |
+          cd td
+            BUILD_TYPE="Debug"
+            SYSTEM="Apple-silicon"
+            echo "Building TDLib for $SYSTEM $HOST_ARCH $BUILD_TYPE"
+            TDLIB_DIR="${PWD}/third_party/td/$SYSTEM-$HOST_ARCH-$BUILD_TYPE"
+            TDLIB_DIR="${PWD}/tdlib"
+            TDLIB_ZIP="tdlib-$SYSTEM-$HOST_ARCH-$BUILD_TYPE-$version.zip"
+
+            rm -rf build && mkdir build && cd build
+              cmake -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
+              -DOPENSSL_ROOT_DIR="$OPENSSL_INST_VER" \
+              -DCMAKE_INSTALL_PREFIX:PATH="${TDLIB_DIR}" \
+              -DTD_ENABLE_LTO=ON \
+              ..
+              cmake --build . --parallel $(nproc) --target install
+            cd ..
+            
+            echo "changing to $TDLIB_DIR"
+            echo "compressing to $ARTIFACT_DIR/$TDLIB_ZIP *"
+            cd $TDLIB_DIR && jar -cMf "$ARTIFACT_DIR/$TDLIB_ZIP" *
+
+      - name: Upload To Artifacts Dir
+        if: env.UPDATE_TDLIB == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ArtifactsDir
+          path: ${{ env.ARTIFACT_DIR }}/*.zip
+          retention-days: 1
+
+      - name: Download All Artifacts
+        if: env.UPDATE_TDLIB == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: ArtifactsDir
+          path: artifacts
+
+      - name: Upload to Telegram
+        if: env.UPDATE_TDLIB == 'true'
+        env:
+          API_ID: ${{ secrets.TELEGRAM_API_ID }}
+          API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
+          SESSION: ${{ secrets.TELEGRAM_SESSION }}
+          CHAT_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
+          MESSAGE_THREAD_ID: ${{ secrets.MESSAGE_THREAD_ID }}
+          COMMIT_MESSAGE: ${{ env.commit_message }}
+        run: |
+          if [ ! -z "${{ secrets.TELEGRAM_BOT_TOKEN }}" ]; then
+            pip3 install Telethon==${{ env.tdbuild_versions_Telethon }}
+            TGUPLOAD="${PWD}/.github/workflows/tguploadbot.py"            
+            cd artifacts
+              TG_UPLOAD_FILES=$(ls *.zip)
+              ls -l
+            python3 $TGUPLOAD $TG_UPLOAD_FILES
+          fi
