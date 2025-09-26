@@ -52,7 +52,7 @@ jobs:
           
           wait_for_run() {
             local RUN_ID=$1
-            local MAX_WAIT=7200 # 2h
+            local MAX_WAIT=10800 # 3h
             local POLL_INTERVAL=600 # 10min
             local ELAPSED=0
             
