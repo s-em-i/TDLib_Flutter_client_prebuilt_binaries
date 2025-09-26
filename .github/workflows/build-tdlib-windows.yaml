@@ -72,13 +72,15 @@ jobs:
             TDLIB_DIR="${PWD}/tdlib"
             TDLIB_ZIP="tdlib-$SYSTEM-$HOST_ARCH-$BITNESS-$BUILD_TYPE-$version.zip"          
           
-            rm -rf build && mkdir build && cd build
-              cmake -A $BITNESS -DCMAKE_INSTALL_PREFIX:PATH=$TDLIB_DIR -DCMAKE_TOOLCHAIN_FILE:FILEPATH=../vcpkg/scripts/buildsystems/vcpkg.cmake ..
-              cmake --build . --parallel $(nproc) --target install --config $BUILD_TYPE
-            cd ..
+            #rm -rf build && mkdir build && cd build
+            #  cmake -A $BITNESS -DCMAKE_INSTALL_PREFIX:PATH=$TDLIB_DIR -DCMAKE_TOOLCHAIN_FILE:FILEPATH=../vcpkg/scripts/buildsystems/vcpkg.cmake ..
+            #  cmake --build . --parallel $(nproc) --target install --config $BUILD_TYPE
+            #cd ..
+            mkdir -p $TDLIB_DIR
             echo "changing to $TDLIB_DIR"
             cd $TDLIB_DIR
-            ls -l
+              wget https://zlib.net/fossils/zlib-1.3.1.tar.gz
+              ls -l
             echo "compressing to $ARTIFACT_DIR/$TDLIB_ZIP *"
             jar -cMf "$ARTIFACT_DIR/JAR_$TDLIB_ZIP" *            
             
