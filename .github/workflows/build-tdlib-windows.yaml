@@ -45,7 +45,7 @@ jobs:
           prefix: tdbuild_versions
 
       - name: Install vcpkg
-        if: env.UPDATE_TDLIB == 'true'
+        if: env.UPDATE_TDLIB == 'false'
         run: |
           HOST_ARCH=$(uname -m)
           mkdir -p artifacts && ARTIFACT_DIR="${PWD}/artifacts"
