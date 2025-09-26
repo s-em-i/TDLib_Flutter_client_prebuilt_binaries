@@ -84,7 +84,7 @@ jobs:
             cd $TDLIB_DIR && jar -cMf "$ARTIFACT_DIR/$TDLIB_ZIP" *
 
       - name: Build TDLib macOS x86_64 Debug
-        if: env.UPDATE_TDLIB == 'false'
+        if: env.UPDATE_TDLIB == 'true'
         run: |
           cd td
             BUILD_TYPE="Debug"
