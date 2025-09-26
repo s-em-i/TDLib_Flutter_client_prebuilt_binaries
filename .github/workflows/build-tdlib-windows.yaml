@@ -48,7 +48,7 @@ jobs:
         if: env.UPDATE_TDLIB == 'true'
         run: |
           HOST_ARCH=$(uname -m)
-          mkdir artifacts && ARTIFACT_DIR="${PWD}/artifacts"
+          mkdir -p artifacts && ARTIFACT_DIR="${PWD}/artifacts"
           echo "HOST_ARCH=$HOST_ARCH" >> $GITHUB_ENV
           echo "ARTIFACT_DIR=$ARTIFACT_DIR" >> $GITHUB_ENV
           printf "commit_message<<EOF\n%s\n%s\nEOF\n" "TDLib Prebuilt Binaries $version" "$commit_hash Update version to $version" >> $GITHUB_ENV
@@ -77,9 +77,37 @@ jobs:
               cmake --build . --parallel $(nproc) --target install --config $BUILD_TYPE
             cd ..
             echo "changing to $TDLIB_DIR"
+            cd $TDLIB_DIR
             ls -l
             echo "compressing to $ARTIFACT_DIR/$TDLIB_ZIP *"
-            cd $TDLIB_DIR && jar -cMf "$ARTIFACT_DIR/$TDLIB_ZIP" *
+            jar -cMf "$ARTIFACT_DIR/JAR_$TDLIB_ZIP" *            
+            
+            echo "Aktuelles Working Directory: $(pwd)"
+            echo "ARTIFACT_DIR-Wert: $ARTIFACT_DIR"
+            echo "Vollständiger Pfad zur ZIP: $ARTIFACT_DIR/$TDLIB_ZIP"
+            ls -la "$ARTIFACT_DIR"
+            ls -la "$ARTIFACT_DIR"/*.zip || echo "Keine .zip-Datei gefunden!"
+            
+            # Überprüfe Dateigröße (sollte >0 sein)
+            if [ -f "$ARTIFACT_DIR/$TDLIB_ZIP" ]; then
+              echo "ZIP-Datei existiert und hat Größe: $(stat -c%s "$ARTIFACT_DIR/$TDLIB_ZIP" 2>/dev/null || stat -f%z "$ARTIFACT_DIR/$TDLIB_ZIP") Bytes"
+            else
+              echo "FEHLER: ZIP-Datei wurde nicht erstellt!"
+            fi
+            
+            zip -r "$ARTIFACT_DIR/ZIP_$TDLIB_ZIP" *
+            echo "Aktuelles Working Directory: $(pwd)"
+            echo "ARTIFACT_DIR-Wert: $ARTIFACT_DIR"
+            echo "Vollständiger Pfad zur ZIP: $ARTIFACT_DIR/$TDLIB_ZIP"
+            ls -la "$ARTIFACT_DIR"
+            ls -la "$ARTIFACT_DIR"/*.zip || echo "Keine .zip-Datei gefunden!"
+            
+            # Überprüfe Dateigröße (sollte >0 sein)
+            if [ -f "$ARTIFACT_DIR/$TDLIB_ZIP" ]; then
+              echo "ZIP-Datei existiert und hat Größe: $(stat -c%s "$ARTIFACT_DIR/$TDLIB_ZIP" 2>/dev/null || stat -f%z "$ARTIFACT_DIR/$TDLIB_ZIP") Bytes"
+            else
+              echo "FEHLER: ZIP-Datei wurde nicht erstellt!"
+            fi
         shell: bash
 
       - name: Build TDLib macOS x86_64 Debug
