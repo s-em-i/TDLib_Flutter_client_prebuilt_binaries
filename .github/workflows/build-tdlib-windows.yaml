@@ -50,6 +50,7 @@ jobs:
         run: |
           HOST_ARCH=$(uname -m)
           mkdir -p artifacts && ARTIFACT_DIR="${PWD}/artifacts"
+          echo "ARTIFACT_DIR-Wert: $ARTIFACT_DIR"
           echo "HOST_ARCH=$HOST_ARCH" >> $GITHUB_ENV
           echo "ARTIFACT_DIR=$ARTIFACT_DIR" >> $GITHUB_ENV
           printf "commit_message<<EOF\n%s\n%s\nEOF\n" "TDLib Prebuilt Binaries $version" "$commit_hash Update version to $version" >> $GITHUB_ENV
