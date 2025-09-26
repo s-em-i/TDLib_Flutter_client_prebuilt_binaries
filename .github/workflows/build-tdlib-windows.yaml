@@ -35,6 +35,8 @@ jobs:
               echo "UPDATE_TDLIB=true" >> $GITHUB_ENV
             fi
           cd -
+          choco install wget -y
+          refreshenv
         shell: bash
 
       - name: JSON to variables
