@@ -5,7 +5,7 @@ permissions:
   actions: write
   contents: read
 jobs:
-  build-tdlib-macos-intel:
+  build-tdlib-windows:
     runs-on: windows-2025
     steps:
       - uses: actions/checkout@v4
@@ -35,7 +35,7 @@ jobs:
               echo "UPDATE_TDLIB=true" >> $GITHUB_ENV
             fi
           cd -
-          shell: bash
+        shell: bash
 
       - name: JSON to variables
         if: env.UPDATE_TDLIB == 'true'
