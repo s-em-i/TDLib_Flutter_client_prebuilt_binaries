@@ -95,7 +95,7 @@ jobs:
         if: env.UPDATE_TDLIB == 'true'
         run: |
           cd td/example/ios
-            SYSTEM="iOS watchOS tvOS visionOS"            
+            SYSTEM="iOS-watchOS-tvOS-visionOS"            
             echo "Building TDLib for $SYSTEM"
             TDLIB_DIR="${PWD}/tdjson"
             TDLIB_ZIP="tdlib-$SYSTEM-$version.zip"
