@@ -140,8 +140,10 @@ jobs:
           COMMIT_MESSAGE: ${{ env.commit_message }}
         run: |
           if [ ! -z "${{ secrets.TELEGRAM_BOT_TOKEN }}" ]; then
-            brew install python
-            pip3 install Telethon==${{ env.tdbuild_versions_Telethon }}
+            #brew install python || brew reinstall python@3.13
+            python3 -m pip install --upgrade pip
+            python3 -m pip install --upgrade telethon==${{ env.tdbuild_versions_Telethon }}
+            #pip3 install Telethon==${{ env.tdbuild_versions_Telethon }}
             TGUPLOAD="${PWD}/.github/workflows/tguploadbot.py"            
             cd artifacts
               TG_UPLOAD_FILES=$(ls *.zip)
