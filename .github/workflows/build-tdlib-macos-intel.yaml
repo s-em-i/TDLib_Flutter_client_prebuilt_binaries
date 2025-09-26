@@ -67,6 +67,7 @@ jobs:
             SYSTEM="macOS"
             echo "Building TDLib for $SYSTEM $HOST_ARCH $BUILD_TYPE"
             TDLIB_DIR="${PWD}/third_party/td/$SYSTEM-$HOST_ARCH-$BUILD_TYPE"
+            TDLIB_DIR="${PWD}/tdlib"
             TDLIB_ZIP="tdlib-$SYSTEM-$HOST_ARCH-$BUILD_TYPE-$version.zip"
 
             rm -rf build && mkdir build && cd build
@@ -82,8 +83,30 @@ jobs:
             echo "compressing to $ARTIFACT_DIR/$TDLIB_ZIP *"
             cd $TDLIB_DIR && jar -cMf "$ARTIFACT_DIR/$TDLIB_ZIP" *
 
-      - name: Build TDLib macOS x86_64 Debug
+      - name: Build OpenSSL for macOS iOS watchOS tvOS visionOS
         if: env.UPDATE_TDLIB == 'true'
+        run: |
+          cd td/example/ios
+            SYSTEM="macOS iOS watchOS tvOS visionOS"            
+            echo "Building OpenSSL for $SYSTEM"
+            ./build-openssl.sh
+
+      - name: Build TDLib for iOS watchOS tvOS visionOS
+        if: env.UPDATE_TDLIB == 'true'
+        run: |
+          cd td/example/ios
+            SYSTEM="iOS watchOS tvOS visionOS"            
+            echo "Building TDLib for $SYSTEM"
+            TDLIB_DIR="${PWD}/tdjson"
+            TDLIB_ZIP="tdlib-$SYSTEM-$version.zip"
+            ./build.sh
+
+            echo "changing to $TDLIB_DIR"
+            echo "compressing to $ARTIFACT_DIR/$TDLIB_ZIP *"
+            cd $TDLIB_DIR && jar -cMf "$ARTIFACT_DIR/$TDLIB_ZIP" *
+
+      - name: Build TDLib macOS x86_64 Debug
+        if: env.UPDATE_TDLIB == 'false'
         run: |
           cd td
             BUILD_TYPE="Debug"
