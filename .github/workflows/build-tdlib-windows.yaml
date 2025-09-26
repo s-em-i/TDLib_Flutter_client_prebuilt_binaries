@@ -36,7 +36,6 @@ jobs:
             fi
           cd -
           choco install wget -y
-          refreshenv
         shell: bash
 
       - name: JSON to variables
