@@ -45,7 +45,8 @@ with client:
    client.loop.run_until_complete(main(client))
 ```
 	
-
+## Telegram Group TDlib Prebuilt Binaries
+[TDlib GitHub Prebuilt Binaries](https://t.me/TaPaccoSupport/2)
 
 <a name="license"></a>
 ## License
