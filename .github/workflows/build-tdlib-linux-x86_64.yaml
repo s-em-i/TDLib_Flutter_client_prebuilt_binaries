@@ -92,8 +92,9 @@ jobs:
             BUILD_TYPE="Release"
             SYSTEM="Linux"
             echo "Building TDLib for $SYSTEM $HOST_ARCH $BUILD_TYPE"
-            TDLIB_DIR="${PWD}/third_party/td/$SYSTEM-$HOST_ARCH-$BUILD_TYPE"
+            TDLIB_DIR="${PWD}/tdlib"
             TDLIB_ZIP="tdlib-$SYSTEM-$HOST_ARCH-$BUILD_TYPE-$version.zip"
+            TDLIB_FILES="tdlib/lib/libtdjson.so"
 
             rm -rf build && mkdir build && cd build
               CXXFLAGS="-stdlib=libc++" CC=/usr/bin/clang-14 CXX=/usr/bin/clang++-14 \
@@ -108,7 +109,7 @@ jobs:
               cmake --build . --parallel $(nproc) --target install
             cd ..
 
-            cd "$TDLIB_DIR" && jar -cMf "$ARTIFACT_DIR/$TDLIB_ZIP" *
+            jar -cMf $ARTIFACT_DIR/$TDLIB_ZIP $TDLIB_FILES
 
       - name: Build TDLib Linux x86_64 Debug
         if: env.UPDATE_TDLIB == 'true'
@@ -117,8 +118,9 @@ jobs:
             BUILD_TYPE="Debug"
             SYSTEM="Linux"
             echo "Building TDLib for $SYSTEM $HOST_ARCH $BUILD_TYPE"
-            TDLIB_DIR="${PWD}/third_party/td/$SYSTEM-$HOST_ARCH-$BUILD_TYPE"
+            TDLIB_DIR="${PWD}/tdlib"
             TDLIB_ZIP="tdlib-$SYSTEM-$HOST_ARCH-$BUILD_TYPE-$version.zip"
+            TDLIB_FILES="tdlib/lib/libtdjson.so"
 
             rm -rf build && mkdir build && cd build
               CXXFLAGS="-stdlib=libc++" CC=/usr/bin/clang-14 CXX=/usr/bin/clang++-14 \
@@ -133,7 +135,7 @@ jobs:
               cmake --build . --parallel $(nproc) --target install
             cd ..
             
-            cd "$TDLIB_DIR" && jar -cMf "$ARTIFACT_DIR/$TDLIB_ZIP" *
+            jar -cMf $ARTIFACT_DIR/$TDLIB_ZIP $TDLIB_FILES
 
       - name: Upload To Artifacts Dir
         if: env.UPDATE_TDLIB == 'true'
