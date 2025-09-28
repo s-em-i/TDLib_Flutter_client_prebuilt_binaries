@@ -154,7 +154,7 @@ jobs:
           MESSAGE_THREAD_ID: ${{ secrets.MESSAGE_THREAD_ID }}
           COMMIT_MESSAGE: ${{ env.commit_message }}
         run: |
-          if [ ! -z "${{ secrets.TELEGRAM_BOT_TOKEN }}" ]; then
+          if [ ! -z "${{ secrets.TELEGRAM_SESSION }}" ]; then
             python3 -m venv ./venv
             source ./venv/bin/activate
             python3 -m pip install --upgrade telethon==${{ env.tdbuild_versions_Telethon }}
