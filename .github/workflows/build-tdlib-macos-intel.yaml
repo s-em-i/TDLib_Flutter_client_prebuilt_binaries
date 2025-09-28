@@ -130,7 +130,7 @@ jobs:
           MESSAGE_THREAD_ID: ${{ secrets.MESSAGE_THREAD_ID }}
           COMMIT_MESSAGE: ${{ env.commit_message }}
         run: |
-          if [ ! -z "${{ secrets.TELEGRAM_BOT_TOKEN }}" ]; then
+          if [ ! -z "${{ secrets.TELEGRAM_SESSION }}" ]; then
             pip3 install Telethon==${{ env.tdbuild_versions_Telethon }}
             TGUPLOAD="${PWD}/.github/workflows/tguploadbot.py"            
             cd artifacts
