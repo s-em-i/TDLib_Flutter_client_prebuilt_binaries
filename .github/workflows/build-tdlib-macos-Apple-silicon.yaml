@@ -60,15 +60,15 @@ jobs:
           printf "commit_message<<EOF\n%s\n%s\nEOF\n" "TDLib Prebuilt Binaries $version" "$commit_hash Update version to $version" >> $GITHUB_ENV
 
       - name: Build TDLib macOS Apple silicon Release
-        if: env.UPDATE_TDLIB == 'true'
+        if: env.UPDATE_TDLIB == 'false'
         run: |
           cd td
             BUILD_TYPE="Release"
             SYSTEM="Apple-silicon"
             echo "Building TDLib for $SYSTEM $HOST_ARCH $BUILD_TYPE"
-            TDLIB_DIR="${PWD}/third_party/td/$SYSTEM-$HOST_ARCH-$BUILD_TYPE"
             TDLIB_DIR="${PWD}/tdlib"
             TDLIB_ZIP="tdlib-$SYSTEM-$HOST_ARCH-$BUILD_TYPE-$version.zip"
+            TDLIB_FILES="tdlib/lib/libtdjson.dylib"
 
             rm -rf build && mkdir build && cd build
               cmake -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
@@ -79,9 +79,8 @@ jobs:
               cmake --build . --parallel $(nproc) --target install
             cd ..
 
-            echo "changing to $TDLIB_DIR"
-            echo "compressing to $ARTIFACT_DIR/$TDLIB_ZIP *"
-            cd $TDLIB_DIR && jar -cMf "$ARTIFACT_DIR/$TDLIB_ZIP" *
+            echo "compressing to $ARTIFACT_DIR/$TDLIB_ZIP $TDLIB_FILES"
+            jar -cMf "$ARTIFACT_DIR/$TDLIB_ZIP" "$TDLIB_FILES"
 
       - name: Build OpenSSL for macOS iOS watchOS tvOS visionOS
         if: env.UPDATE_TDLIB == 'true'
@@ -91,40 +90,41 @@ jobs:
             echo "Building OpenSSL for $SYSTEM"
             ./build-openssl.sh
 
-      - name: Build TDLib for iOS watchOS tvOS visionOS
+      - name: Build TDLib for iOS watchOS tvOS visionOS and macOS universal Release
         if: env.UPDATE_TDLIB == 'true'
         run: |
           cd td/example/ios
-            SYSTEM="iOS-watchOS-tvOS-visionOS"            
-            echo "Building TDLib for $SYSTEM"
+            BUILD_TYPE="Release"
+            BUILD_TYPE="Debug"
+            SYSTEM="iOS-watchOS-tvOS-visionOS-macOS"            
+            echo "Building TDLib for $SYSTEM $HOST_ARCH $BUILD_TYPE"    
             TDLIB_DIR="${PWD}/tdjson"
-            TDLIB_ZIP="tdlib-$SYSTEM-$version.zip"
+            TDLIB_ZIP="tdlib-$SYSTEM-$HOST_ARCH-$BUILD_TYPE-$version.zip"
+
+            echo "sed'ing make to maximum cores"
+            sed -i '' 's/make -j3 install/make -j$(sysctl -n hw.ncpu) install/g' build.sh
+            
             ./build.sh
 
             echo "changing to $TDLIB_DIR"
             echo "compressing to $ARTIFACT_DIR/$TDLIB_ZIP *"
             cd $TDLIB_DIR && jar -cMf "$ARTIFACT_DIR/$TDLIB_ZIP" *
 
-      - name: Build TDLib macOS Apple silicon Debug
+      - name: Build TDLib for iOS watchOS tvOS visionOS and macOS universal Debug
         if: env.UPDATE_TDLIB == 'true'
         run: |
-          cd td
+          cd td/example/ios
             BUILD_TYPE="Debug"
-            SYSTEM="Apple-silicon"
-            echo "Building TDLib for $SYSTEM $HOST_ARCH $BUILD_TYPE"
-            TDLIB_DIR="${PWD}/third_party/td/$SYSTEM-$HOST_ARCH-$BUILD_TYPE"
-            TDLIB_DIR="${PWD}/tdlib"
+            SYSTEM="iOS-watchOS-tvOS-visionOS-macOS"            
+            echo "Building TDLib for $SYSTEM $HOST_ARCH $BUILD_TYPE"    
+            TDLIB_DIR="${PWD}/tdjson"
             TDLIB_ZIP="tdlib-$SYSTEM-$HOST_ARCH-$BUILD_TYPE-$version.zip"
 
-            rm -rf build && mkdir build && cd build
-              cmake -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
-              -DOPENSSL_ROOT_DIR="$OPENSSL_INST_VER" \
-              -DCMAKE_INSTALL_PREFIX:PATH="${TDLIB_DIR}" \
-              -DTD_ENABLE_LTO=ON \
-              ..
-              cmake --build . --parallel $(nproc) --target install
-            cd ..
+            echo "sed'ing build type Release to Debug"
+            sed -i '' 's/DCMAKE_BUILD_TYPE=Release/DCMAKE_BUILD_TYPE=Debug/g' build.sh
             
+            ./build.sh
+
             echo "changing to $TDLIB_DIR"
             echo "compressing to $ARTIFACT_DIR/$TDLIB_ZIP *"
             cd $TDLIB_DIR && jar -cMf "$ARTIFACT_DIR/$TDLIB_ZIP" *
