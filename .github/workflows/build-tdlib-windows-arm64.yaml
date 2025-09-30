@@ -1,0 +1,138 @@
+name: tdlib-build-windows-arm64
+on:
+  workflow_dispatch:
+    inputs:
+      commit_hash:
+        description: 'Commit Hash'
+        required: true
+        type: string
+      version:
+        description: 'Version'
+        required: true
+        type: string
+      UPDATE_TDLIB:
+        description: 'UPDATE_TDLIB'
+        required: true
+        type: string
+        default: 'false'
+      RUN_IDS:
+        description: 'RUN_IDS'
+        required: true
+        type: string
+permissions:
+  actions: write
+  contents: read
+jobs:
+  build-tdlib-windows-arm64:
+    runs-on: windows-11-arm
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+          fetch-tags: true
+          
+      - name: Parse Inputs in GITHUB_ENV
+        shell: bash
+        run: |
+          echo "commit_hash=${{ inputs.commit_hash }}" >> $GITHUB_ENV
+          echo "version=${{ inputs.version }}" >> $GITHUB_ENV
+          echo "UPDATE_TDLIB=${{ inputs.UPDATE_TDLIB }}" >> $GITHUB_ENV
+          echo "RUN_IDS=${{ inputs.RUN_IDS }}" >> $GITHUB_ENV
+
+      - name: Trigger next Workflow per CLI
+        if: ${{ env.UPDATE_TDLIB == 'true' }}
+        shell: bash
+        run: |
+          RUN_ID="${{ github.run_id }}"
+          RUN_IDS="$RUN_IDS,$RUN_ID"
+          gh workflow run .github/workflows/build-tdlib-macos-universal.yaml \
+          --field commit_hash="$commit_hash" \
+          --field version="$version" \
+          --field UPDATE_TDLIB="$UPDATE_TDLIB" \
+          --field RUN_IDS="$RUN_IDS" \
+          --ref ${{ github.ref }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: JSON to variables
+        if: ${{ env.UPDATE_TDLIB == 'true' }}
+        uses: rgarcia-phi/json-to-variables@v1.1.0
+        with:
+          filename: '.github/workflows/td-version.json'
+          prefix: tdbuild_versions
+
+      - name: Clone TDLib
+        if: ${{ env.UPDATE_TDLIB == 'true' }}
+        shell: bash
+        run: |
+          git clone https://github.com/tdlib/td.git
+          cd td && git checkout $commit_hash
+
+      - name: Install vcpkg x64
+        if: ${{ env.UPDATE_TDLIB == 'true' }}
+        shell: bash
+        run: |
+          HOST_ARCH=$(uname -m)
+          BITNESS="x64"
+          mkdir -p artifacts && ARTIFACT_DIR="${PWD}/artifacts"
+          echo "ARTIFACT_DIR=$ARTIFACT_DIR"
+          echo "HOST_ARCH=$HOST_ARCH" >> "$GITHUB_ENV"
+          echo "ARTIFACT_DIR=$ARTIFACT_DIR" >> "$GITHUB_ENV"
+          echo "BITNESS=$BITNESS" >> "$GITHUB_ENV"
+          printf "commit_message<<EOF\n%s\n%s\nEOF\n" "TDLib Prebuilt Binaries $version" "$commit_hash Update version to $version" >> "$GITHUB_ENV"
+          
+          cd td
+            git clone https://github.com/Microsoft/vcpkg.git
+            cd vcpkg
+              git checkout bc3512a509f9d29b37346a7e7e929f9a26e66c7e
+              ./bootstrap-vcpkg.bat
+              ./vcpkg.exe install gperf:$BITNESS-windows openssl:$BITNESS-windows zlib:$BITNESS-windows        
+      
+      - name: Build TDLib Windows x64 Release
+        if: ${{ env.UPDATE_TDLIB == 'true' }}
+        shell: bash
+        run: |
+          cd td
+            BUILD_TYPE="Release"
+            SYSTEM="Windows"
+            echo "Building TDLib for $SYSTEM $HOST_ARCH $BITNESS $BUILD_TYPE"
+            TDLIB_DIR="${PWD}/tdlib"
+            TDLIB_ZIP="tdlib-$SYSTEM-$HOST_ARCH-$BITNESS-$BUILD_TYPE-$version.zip"
+            TDLIB_FILES="tdlib/bin"
+          
+            rm -rf $TDLIB_DIR && rm -rf build && mkdir build && cd build
+              cmake -A $BITNESS -DCMAKE_INSTALL_PREFIX:PATH=$TDLIB_DIR -DCMAKE_TOOLCHAIN_FILE:FILEPATH=../vcpkg/scripts/buildsystems/vcpkg.cmake ..
+              cmake --build . --parallel $(nproc) --target install --config $BUILD_TYPE
+            cd ..
+
+            echo "compressing to $ARTIFACT_DIR/$TDLIB_ZIP $TDLIB_FILES/*"
+            jar -cMf $ARTIFACT_DIR/$TDLIB_ZIP $TDLIB_FILES/* 
+
+      - name: Build TDLib Windows x64 Debug
+        if: ${{ env.UPDATE_TDLIB == 'true' }}
+        shell: bash
+        run: |
+          cd td
+            BUILD_TYPE="Debug"
+            SYSTEM="Windows"
+            echo "Building TDLib for $SYSTEM $HOST_ARCH $BITNESS $BUILD_TYPE"
+            TDLIB_DIR="${PWD}/tdlib"
+            TDLIB_ZIP="tdlib-$SYSTEM-$HOST_ARCH-$BITNESS-$BUILD_TYPE-$version.zip"          
+            TDLIB_FILES="tdlib/bin"
+            
+            rm -rf $TDLIB_DIR && rm -rf build && mkdir build && cd build
+              cmake -A $BITNESS -DCMAKE_INSTALL_PREFIX:PATH=$TDLIB_DIR -DCMAKE_TOOLCHAIN_FILE:FILEPATH=../vcpkg/scripts/buildsystems/vcpkg.cmake ..
+              cmake --build . --parallel $(nproc) --target install --config $BUILD_TYPE
+            cd ..
+
+            echo "compressing to $ARTIFACT_DIR/$TDLIB_ZIP $TDLIB_FILES/*"
+            jar -cMf $ARTIFACT_DIR/$TDLIB_ZIP $TDLIB_FILES/*
+            
+      - name: Upload To Artifacts Dir
+        if: ${{ env.UPDATE_TDLIB == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ArtifactsDir
+          path: artifacts/*.zip
+          retention-days: 1
