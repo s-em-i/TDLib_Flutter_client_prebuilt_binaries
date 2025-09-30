@@ -43,7 +43,7 @@ jobs:
         run: |
           RUN_ID="${{ github.run_id }}"
           RUN_IDS="$RUN_IDS,$RUN_ID"
-          gh workflow run .github/workflows/upload_artifacts.yaml \
+          gh workflow run .github/workflows/build-tdlib-windows-x86_64.yaml \
           --field commit_hash="$commit_hash" \
           --field version="$version" \
           --field UPDATE_TDLIB="$UPDATE_TDLIB" \
