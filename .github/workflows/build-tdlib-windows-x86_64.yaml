@@ -1,6 +1,24 @@
 name: tdlib-build-windows-x86_64
 on:
   workflow_dispatch:
+    inputs:
+      commit_hash:
+        description: 'Commit Hash'
+        required: true
+        type: string
+      version:
+        description: 'Version'
+        required: true
+        type: string
+      UPDATE_TDLIB:
+        description: 'UPDATE_TDLIB'
+        required: true
+        type: string
+        default: 'false'
+      RUN_IDS:
+        description: 'RUN_IDS'
+        required: true
+        type: string
 permissions:
   actions: write
   contents: read
@@ -14,19 +32,42 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
           
-      - name: Clone TDLib and set version
+      - name: Parse Inputs in GITHUB_ENV
+        shell: bash
+        run: |
+          echo "commit_hash=${{ inputs.commit_hash }}" >> $GITHUB_ENV
+          echo "version=${{ inputs.version }}" >> $GITHUB_ENV
+          echo "UPDATE_TDLIB=${{ inputs.UPDATE_TDLIB }}" >> $GITHUB_ENV
+          echo "RUN_IDS=${{ inputs.RUN_IDS }}" >> $GITHUB_ENV
+
+      - name: Trigger next Workflow per CLI
+        if: ${{ env.UPDATE_TDLIB == 'true' }}
+        shell: bash
+        run: |
+          RUN_ID="${{ github.run_id }}"
+          RUN_IDS="$RUN_IDS,$RUN_ID"
+          gh workflow run .github/workflows/build-tdlib-windows-arm64.yaml \
+          --field commit_hash="$commit_hash" \
+          --field version="$version" \
+          --field UPDATE_TDLIB="$UPDATE_TDLIB" \
+          --field RUN_IDS="$RUN_IDS" \
+          --ref ${{ github.ref }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: JSON to variables
+        if: ${{ env.UPDATE_TDLIB == 'true' }}
+        uses: rgarcia-phi/json-to-variables@v1.1.0
+        with:
+          filename: '.github/workflows/td-version.json'
+          prefix: tdbuild_versions
+
+      - name: Clone TDLib
+        if: ${{ env.UPDATE_TDLIB == 'true' }}
         shell: bash
         run: |
           git clone https://github.com/tdlib/td.git
-          cd td
-            echo "UPDATE_TDLIB=false" >> "$GITHUB_ENV"
-            commit_hash="7d257dcda"
-            version="1.8.55"
-            git checkout $commit_hash
-            echo "version=$version" >> "$GITHUB_ENV"
-            echo "commit_hash=$commit_hash" >> "$GITHUB_ENV"
-            echo "UPDATE_TDLIB=true" >> "$GITHUB_ENV"
-          cd -
+          cd td && git checkout $commit_hash
 
       - name: Install vcpkg x64
         if: ${{ env.UPDATE_TDLIB == 'true' }}
@@ -153,31 +194,3 @@ jobs:
           name: ArtifactsDir
           path: artifacts/*.zip
           retention-days: 1
-          if-no-files-found: ignore
-
-      - name: Download All Artifacts
-        if: ${{ env.UPDATE_TDLIB == 'true' }}
-        uses: actions/download-artifact@v4
-        with:
-          name: ArtifactsDir
-          path: artifacts
-
-      - name: Upload to Telegram
-        if: ${{ env.UPDATE_TDLIB == 'true' }}
-        env:
-          API_ID: ${{ secrets.TELEGRAM_API_ID }}
-          API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
-          SESSION: ${{ secrets.TELEGRAM_SESSION }}
-          CHAT_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
-          MESSAGE_THREAD_ID: ${{ secrets.MESSAGE_THREAD_ID }}
-          COMMIT_MESSAGE: ${{ env.commit_message }}
-        shell: bash
-        run: |
-          if [ ! -z "${{ secrets.TELEGRAM_SESSION }}" ]; then
-            pip3 install Telethon==1.41.2
-            TGUPLOAD="${PWD}/.github/workflows/tguploadclient.py"            
-            cd artifacts
-              TG_UPLOAD_FILES=$(ls *.zip)
-              ls -l
-            python3 $TGUPLOAD $TG_UPLOAD_FILES
-          fi
