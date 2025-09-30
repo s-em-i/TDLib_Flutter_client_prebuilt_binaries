@@ -9,7 +9,7 @@ from telethon.tl import types
 API_ID = int(os.getenv("API_ID"))
 API_HASH = os.getenv("API_HASH")
 SESSION = os.environ.get("SESSION")
-CHAT_ID = int(os.getenv("CHAT_ID"))
+CHAT_ID = os.getenv("CHAT_ID")
 MESSAGE_THREAD_ID = int(os.getenv("MESSAGE_THREAD_ID"))
 COMMIT_MESSAGE = os.environ.get("COMMIT_MESSAGE")
 
@@ -17,6 +17,7 @@ def create_client():
     return TelegramClient(StringSession(SESSION), API_ID, API_HASH)
 
 async def main():
+    global CHAT_ID
     if not all([API_ID, API_HASH, SESSION, CHAT_ID]):
         print("[-] Missing required env vars!")
         sys.exit(1)
@@ -27,6 +28,21 @@ async def main():
     client = create_client()
     
     async with client:
+        CHAT_ID = CHAT_ID.replace("/c/", "/")
+        try:
+            real_id = int(CHAT_ID)
+            print(f"[+] {real_id} is a valid Number")
+            CHAT_ID = real_id
+        except ValueError:
+            print(f"[-] {CHAT_ID} is NOT a valid Number")
+            try:
+                entity = await client.get_entity(CHAT_ID)
+                real_id, peer_type = utils.resolve_id(entity.id)
+                print(f"[+] Real ID: {real_id}")
+                CHAT_ID = real_id
+            except Exception as e:
+                print(f"[-] Error: {e}")
+                sys.exit(1)
         try:
             real_id, peer_type = utils.resolve_id(CHAT_ID)        
             entity = await client.get_entity(PeerChannel(real_id))
@@ -60,15 +76,17 @@ async def main():
                 reply_to=MESSAGE_THREAD_ID
             )
         else:
-            print(f"[+] Uploading {len(valid_files)} files as album...")
-            await client.send_file(
-                entity,
-                valid_files,
-                caption=COMMIT_MESSAGE,
-                reply_to=MESSAGE_THREAD_ID
-            )
+            chunks = [valid_files[i:i + 10] for i in range(0, len(valid_files), 10)]
+            for chunk in chunks:
+                print(f"[+] Uploading {len(chunk)} files as album...")
+                await client.send_file(
+                    entity,
+                    chunk,
+                    caption=COMMIT_MESSAGE,
+                    reply_to=MESSAGE_THREAD_ID
+                )
         
-        print("[+] Album uploaded successfully!")
+        print("[+] Album(s) uploaded successfully!")
         print("[+] Done!")
 
 if __name__ == "__main__":
