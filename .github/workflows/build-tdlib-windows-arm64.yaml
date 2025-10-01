@@ -62,71 +62,102 @@ jobs:
           filename: '.github/workflows/td-version.json'
           prefix: tdbuild_versions
 
-      - name: Clone TDLib
+      - name: Clone TDLib and get Host Arch
         if: ${{ env.UPDATE_TDLIB == 'true' }}
-        shell: bash
+        shell: pwsh
         run: |
           git clone https://github.com/tdlib/td.git
-          cd td && git checkout $commit_hash
-
-      - name: Install vcpkg x64
-        if: ${{ env.UPDATE_TDLIB == 'true' }}
-        shell: bash
-        run: |
-          HOST_ARCH=$(uname -m)
-          BITNESS="x64"
-          mkdir -p artifacts && ARTIFACT_DIR="${PWD}/artifacts"
-          echo "ARTIFACT_DIR=$ARTIFACT_DIR"
-          echo "HOST_ARCH=$HOST_ARCH" >> "$GITHUB_ENV"
-          echo "ARTIFACT_DIR=$ARTIFACT_DIR" >> "$GITHUB_ENV"
-          echo "BITNESS=$BITNESS" >> "$GITHUB_ENV"
+          cd td 
+            git checkout $commit_hash            
           
+            $systemType = (Get-CimInstance Win32_ComputerSystem).SystemType
+            $realArch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLower()
+        
+            if ($systemType -like "*ARM64*") {
+              Write-Host "Running on actual ARM64 hardware (emulated x64 shell)"
+              $HOST_ARCH = "aarch64"
+            } else {
+              $HOST_ARCH = $realArch
+            }
+            
+            Add-Content -Path $env:GITHUB_ENV -Value "HOST_ARCH=$HOST_ARCH"          
+
+      - name: Install vcpkg arm64
+        if: ${{ env.UPDATE_TDLIB == 'true' }}
+        shell: pwsh
+        run: |
+
+          $BITNESS = "arm64"
+          New-Item -ItemType Directory -Force -Path artifacts | Out-Null
+          $ARTIFACT_DIR = Join-Path $PWD "artifacts"
+      
+          Write-Host "ARTIFACT_DIR=$ARTIFACT_DIR"
+          Add-Content -Path $env:GITHUB_ENV -Value "ARTIFACT_DIR=$ARTIFACT_DIR"
+          Add-Content -Path $env:GITHUB_ENV -Value "BITNESS=$BITNESS"
+      
+          # vcpkg setup
           cd td
             git clone https://github.com/Microsoft/vcpkg.git
             cd vcpkg
               git checkout bc3512a509f9d29b37346a7e7e929f9a26e66c7e
               ./bootstrap-vcpkg.bat
-              ./vcpkg.exe install gperf:$BITNESS-windows openssl:$BITNESS-windows zlib:$BITNESS-windows        
+              ./vcpkg.exe install gperf:$BITNESS-windows openssl:$BITNESS-windows zlib:$BITNESS-windows       
       
-      - name: Build TDLib Windows x64 Release
+      - name: Build TDLib Windows arm64 Release
         if: ${{ env.UPDATE_TDLIB == 'true' }}
-        shell: bash
+        shell: pwsh
         run: |
           cd td
-            BUILD_TYPE="Release"
-            SYSTEM="Windows"
-            echo "Building TDLib for $SYSTEM $HOST_ARCH $BITNESS $BUILD_TYPE"
-            TDLIB_DIR="${PWD}/tdlib"
-            TDLIB_ZIP="tdlib-$SYSTEM-$HOST_ARCH-$BITNESS-$BUILD_TYPE-$version.zip"
-            TDLIB_FILES="tdlib/bin"
+            $buildType = "Release"
+            $system = "Windows"
+        
+            Write-Host "Building TDLib for $system $($env:HOST_ARCH) $buildType"
+        
+            $tdlibDir = Join-Path $PWD "tdlib"
+            $tdlibZip = "tdlib-$system-$($env:HOST_ARCH)-$buildType-$($env:version).zip"
+            $tdlibFiles = "tdlib/bin"
+        
+            Remove-Item -Path $tdlibDir -Recurse -Force -ErrorAction SilentlyContinue
+            Remove-Item -Path build -Recurse -Force -ErrorAction SilentlyContinue
+            New-Item -ItemType Directory -Path build -Force | Out-Null
+            cd build
+              cmake -A $env:BITNESS -DCMAKE_INSTALL_PREFIX:PATH=$tdlibDir -DCMAKE_TOOLCHAIN_FILE:FILEPATH=../vcpkg/scripts/buildsystems/vcpkg.cmake ..
           
-            rm -rf $TDLIB_DIR && rm -rf build && mkdir build && cd build
-              cmake -A $BITNESS -DCMAKE_INSTALL_PREFIX:PATH=$TDLIB_DIR -DCMAKE_TOOLCHAIN_FILE:FILEPATH=../vcpkg/scripts/buildsystems/vcpkg.cmake ..
-              cmake --build . --parallel $(nproc) --target install --config $BUILD_TYPE
+              $parallelJobs = [Environment]::ProcessorCount
+              cmake --build . --parallel $parallelJobs --target install --config $buildType        
             cd ..
+        
+          $ARTIFACT_DIR = ($env:ARTIFACT_DIR).Replace('\', '/')
+          Write-Host "Compressing to $ARTIFACT_DIR/$tdlibZip $tdlibFiles/*"
+          jar -cMf $ARTIFACT_DIR/$tdlibZip $tdlibFiles/*
 
-            echo "compressing to $ARTIFACT_DIR/$TDLIB_ZIP $TDLIB_FILES/*"
-            jar -cMf $ARTIFACT_DIR/$TDLIB_ZIP $TDLIB_FILES/* 
-
-      - name: Build TDLib Windows x64 Debug
+      - name: Build TDLib Windows arm64 Debug
         if: ${{ env.UPDATE_TDLIB == 'true' }}
-        shell: bash
+        shell: pwsh
         run: |
           cd td
-            BUILD_TYPE="Debug"
-            SYSTEM="Windows"
-            echo "Building TDLib for $SYSTEM $HOST_ARCH $BITNESS $BUILD_TYPE"
-            TDLIB_DIR="${PWD}/tdlib"
-            TDLIB_ZIP="tdlib-$SYSTEM-$HOST_ARCH-$BITNESS-$BUILD_TYPE-$version.zip"          
-            TDLIB_FILES="tdlib/bin"
-            
-            rm -rf $TDLIB_DIR && rm -rf build && mkdir build && cd build
-              cmake -A $BITNESS -DCMAKE_INSTALL_PREFIX:PATH=$TDLIB_DIR -DCMAKE_TOOLCHAIN_FILE:FILEPATH=../vcpkg/scripts/buildsystems/vcpkg.cmake ..
-              cmake --build . --parallel $(nproc) --target install --config $BUILD_TYPE
+            $buildType = "Debug"
+            $system = "Windows"
+        
+            Write-Host "Building TDLib for $system $($env:HOST_ARCH) $buildType"
+        
+            $tdlibDir = Join-Path $PWD "tdlib"
+            $tdlibZip = "tdlib-$system-$($env:HOST_ARCH)-$buildType-$($env:version).zip"
+            $tdlibFiles = "tdlib/bin"
+        
+            Remove-Item -Path $tdlibDir -Recurse -Force -ErrorAction SilentlyContinue
+            Remove-Item -Path build -Recurse -Force -ErrorAction SilentlyContinue
+            New-Item -ItemType Directory -Path build -Force | Out-Null
+            cd build
+              cmake -A $env:BITNESS -DCMAKE_INSTALL_PREFIX:PATH=$tdlibDir -DCMAKE_TOOLCHAIN_FILE:FILEPATH=../vcpkg/scripts/buildsystems/vcpkg.cmake ..
+          
+              $parallelJobs = [Environment]::ProcessorCount
+              cmake --build . --parallel $parallelJobs --target install --config $buildType        
             cd ..
-
-            echo "compressing to $ARTIFACT_DIR/$TDLIB_ZIP $TDLIB_FILES/*"
-            jar -cMf $ARTIFACT_DIR/$TDLIB_ZIP $TDLIB_FILES/*
+        
+          $ARTIFACT_DIR = ($env:ARTIFACT_DIR).Replace('\', '/')
+          Write-Host "Compressing to $ARTIFACT_DIR/$tdlibZip $tdlibFiles/*"
+          jar -cMf $ARTIFACT_DIR/$tdlibZip $tdlibFiles/*
             
       - name: Upload To Artifacts Dir
         if: ${{ env.UPDATE_TDLIB == 'true' }}
